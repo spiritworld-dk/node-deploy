@@ -1,0 +1,9 @@
+{
+    "name": "@riddance/aws-env",
+    "version": "0.0.1",
+    "type": "module",
+    "license": "MIT",
+    "engines": {
+        "node": ">=16"
+    }
+}
