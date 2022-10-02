@@ -1,0 +1,288 @@
+import commonjs from '@rollup/plugin-commonjs'
+import json from '@rollup/plugin-json'
+import { nodeResolve } from '@rollup/plugin-node-resolve'
+import virtual from '@rollup/plugin-virtual'
+import { createHash } from 'node:crypto'
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
+import zlib from 'node:zlib'
+import { rollup, RollupCache, SourceMap } from 'rollup'
+import { minify } from 'terser'
+import { install } from './npm.js'
+
+interface Implementation {
+    implementation: string
+    version: string
+}
+
+export async function stage(
+    path: string,
+    implementations: { [fromPackage: string]: Implementation },
+    service: string,
+) {
+    const stagePath = join(tmpdir(), 'riddance', 'stage', service)
+    console.log(`stage dir: ${stagePath}`)
+    console.log('staging...')
+    const { functions, hashes } = await copyAndPatchProject(path, stagePath, implementations)
+
+    console.log('syncing dependencies...')
+    await install(stagePath)
+    hashes['package-lock.json'] = createHash('sha256')
+        .update(await readFile(join(stagePath, 'package-lock.json')))
+        .digest('base64')
+
+    let previous: { [source: string]: string } = {}
+    try {
+        previous = JSON.parse(await readFile(join(stagePath, '.hashes.json'), 'utf-8')) as {
+            [source: string]: string
+        }
+    } catch (e) {
+        if ((e as { code?: string }).code !== 'ENOENT') {
+            throw e
+        }
+    }
+
+    const packageChange =
+        previous['package.json'] !== hashes['package.json'] ||
+        previous['package-lock.json'] !== hashes['package-lock.json']
+
+    const hashesJson = JSON.stringify(hashes, undefined, '  ')
+    const changed = []
+    const unchanged = []
+    for (const fn of functions) {
+        const file = fn + '.js'
+        if (previous[file] !== hashes[file] || packageChange) {
+            changed.push(fn)
+        } else {
+            unchanged.push(fn)
+        }
+        delete previous[file]
+        delete hashes[file]
+    }
+    const nonFunctionFilesUnchanged = isDeepStrictEqual(previous, hashes)
+    if (nonFunctionFilesUnchanged) {
+        const code = [
+            ...(await rollupAndMinify(path, stagePath, changed)),
+            ...(await Promise.all(
+                unchanged.map(async fn => ({
+                    fn,
+                    code: await readFile(join(stagePath, fn + '.min.js'), 'utf-8'),
+                })),
+            )),
+        ]
+        await writeFile(join(stagePath, '.hashes.json'), hashesJson)
+        return code
+    } else {
+        const code = await rollupAndMinify(path, stagePath, functions)
+        await writeFile(join(stagePath, '.hashes.json'), hashesJson)
+        return code
+    }
+}
+
+async function copyAndPatchProject(
+    path: string,
+    target: string,
+    implementations: { [fromPackage: string]: Implementation },
+) {
+    const hashes: { [source: string]: string } = {}
+    const sourceFiles = (await find(path)).map(f => f.substring(path.length + 1))
+    const serviceFiles = sourceFiles.filter(f => f.endsWith('.js') && !f.includes('/'))
+
+    for (const sf of sourceFiles) {
+        hashes[sf] = await mkDirCopyFile(join(path, sf), join(target, sf), implementations)
+    }
+
+    const packageFile = join(target, 'package.json')
+    const packageJson = JSON.parse(await readFile(packageFile, 'utf-8')) as {
+        name: string
+        config?: unknown
+        dependencies: { [packageName: string]: string }
+        devDependencies?: unknown
+    }
+
+    for (const [pkg, sub] of Object.entries(implementations)) {
+        if (packageJson.dependencies[pkg]) {
+            delete packageJson.dependencies[pkg]
+            packageJson.dependencies[sub.implementation] = sub.version
+        }
+    }
+    delete packageJson.devDependencies
+
+    const updated = JSON.stringify(packageJson)
+    hashes['package.json'] = createHash('sha256').update(updated).digest('base64')
+    await writeFile(packageFile, updated)
+
+    return { functions: serviceFiles.map(f => f.substring(0, f.length - 3)), hashes }
+}
+
+async function mkDirCopyFile(
+    source: string,
+    target: string,
+    implementations: { [fromPackage: string]: Implementation },
+) {
+    let code = await readFile(source, 'utf-8')
+    for (const [fromPackage, toPackage] of Object.entries(implementations)) {
+        code = code.replaceAll(
+            new RegExp(
+                `import \\{ ([^}]+) \\} from '${fromPackage.replaceAll('/', '\\/')}(|/[^']+)';`,
+                'gu',
+            ),
+            `import { $1 } from '${toPackage.implementation}$2';`,
+        )
+    }
+    try {
+        await writeFile(target, code)
+    } catch {
+        await mkdir(dirname(target), { recursive: true })
+        await writeFile(target, code)
+    }
+    return createHash('sha256').update(code).digest('base64')
+}
+
+async function find(dir: string): Promise<string[]> {
+    let results: string[] = []
+    let i = 0
+    for (;;) {
+        const list = (await readdir(dir)).filter(
+            f =>
+                !f.startsWith('.') &&
+                !f.endsWith('.ts') &&
+                !f.endsWith('.gz') &&
+                !f.endsWith('.min.js') &&
+                f !== 'tsconfig.json' &&
+                f !== 'dictionary.txt' &&
+                f !== 'node_modules' &&
+                f !== 'test' &&
+                f !== 'bin',
+        )
+        let file = list[i++]
+        if (!file) {
+            return results
+        }
+        file = dir + '/' + file
+        const stats = await stat(file)
+        if (stats.isDirectory()) {
+            results = results.concat(await find(file))
+        } else {
+            results.push(file)
+        }
+    }
+}
+
+async function rollupAndMinify(_path: string, stagePath: string, functions: string[]) {
+    const minified = []
+    let rollupCache: RollupCache | undefined
+    for (const fn of functions) {
+        console.log(`bundling ${fn}`)
+        const bundler = await rollup({
+            input: 'entry',
+            cache: rollupCache,
+            treeshake: {
+                correctVarValueBeforeDeclaration: false,
+                propertyReadSideEffects: false,
+                unknownGlobalSideEffects: false,
+                moduleSideEffects: true,
+            },
+            plugins: [
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+                (virtual as any)({
+                    entry: `
+import './${fn}.js'
+import { awsHandler } from '@riddance/aws-host/http'
+
+export const handler = awsHandler
+`,
+                }),
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+                nodeResolve({
+                    browser: false,
+                    exportConditions: ['node'],
+                    rootDir: stagePath,
+                }),
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+                (commonjs as any)(),
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+                (json as any)(),
+            ],
+            onwarn: warning => {
+                if (warning.code === 'THIS_IS_UNDEFINED') {
+                    return
+                }
+                console.warn(`${warning.code ?? warning.message} [${fn}]`)
+            },
+        })
+        rollupCache = bundler.cache
+        const { output } = await bundler.generate({
+            format: 'cjs',
+            compact: true,
+            manualChunks: () => 'entry.js',
+            generatedCode: {
+                preset: 'es2015',
+                arrowFunctions: true,
+                constBindings: true,
+                objectShorthand: true,
+            },
+        })
+        if (output.length !== 1) {
+            console.log(output)
+            throw new Error('Weird')
+        }
+        const [{ code, map }] = output
+        minified.push(pack(stagePath, fn, code, map))
+    }
+    return await Promise.all(minified)
+}
+
+async function pack(stagePath: string, fn: string, code: string, map?: SourceMap) {
+    console.log(`minifying ${fn}`)
+    const min = await minify(
+        { [`${fn}.js`]: code },
+        {
+            compress: {
+                toplevel: true,
+                // eslint-disable-next-line camelcase
+                hoist_funs: true,
+                // eslint-disable-next-line camelcase
+                dead_code: true,
+            },
+            mangle: {
+                module: true,
+            },
+            sourceMap: {
+                content: map,
+                filename: `${fn}.js.map`,
+            },
+            format: {
+                ecma: 2020,
+                comments: false,
+            },
+        },
+    )
+    if (!min.code) {
+        throw new Error('Weird')
+    }
+    console.log(`${fn} minified`)
+    await Promise.all([
+        writeFile(join(stagePath, fn + '.min.js'), min.code),
+        writeFile(
+            join(stagePath, fn + '.min.js.map.gz'),
+            await gzip(min.map as unknown as ArrayBufferLike),
+        ),
+    ])
+
+    return { fn, code: min.code }
+}
+
+function gzip(data: ArrayBufferLike) {
+    return new Promise<Buffer>((resolve, reject) => {
+        zlib.gzip(data, { level: 9 }, (err, buf) => {
+            if (err) {
+                reject(err)
+                return
+            }
+            resolve(buf)
+        })
+    })
+}
