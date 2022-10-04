@@ -38,7 +38,7 @@ export async function syncGateway(
     } else {
         await syncGatewayApi(currentGateway.api, env, agent, prefix, service, corsSites)
         await syncStage(env, agent, prefix, service, currentGateway.api.apiId, currentGateway.stage)
-        const ids = await syncIntegrations(
+        const { ids, surplus: surplusIntegrations } = await syncIntegrations(
             env,
             agent,
             region,
@@ -82,6 +82,18 @@ export async function syncGateway(
                 await updateRoute(env, agent, currentGateway.api.apiId, routeId, route)
             }),
         ])
+        await Promise.all(
+            surplusIntegrations.map(i =>
+                deleteIntegration(
+                    env,
+                    agent,
+                    region,
+                    account,
+                    currentGateway.api.apiId,
+                    i.integrationId,
+                ),
+            ),
+        )
         return currentGateway.api.apiId
     }
 }
@@ -105,12 +117,7 @@ async function syncIntegrations(
             ...i,
         })),
     )
-    const [_, ...ids] = await Promise.all([
-        Promise.all(
-            surplus.map(i =>
-                deleteIntegration(env, agent, region, account, apiId, i.integrationId),
-            ),
-        ),
+    const ids = await Promise.all([
         ...missing.map(fn =>
             createIntegration(
                 env,
@@ -131,7 +138,7 @@ async function syncIntegrations(
             return [name, integrationId] as [string, string]
         }),
     ])
-    return ids
+    return { ids, surplus }
 }
 
 type AwsGateway = Awaited<ReturnType<typeof getApis>>
@@ -288,7 +295,7 @@ function asRoute(
     fn: { method: string; pathPattern: string },
 ): AwsRoute {
     if (!integrationId) {
-        throw new Error('Weird')
+        throw new Error(`Weird: no integration ID for ${fn.method} ${fn.pathPattern}`)
     }
     let p = 0
     return {
