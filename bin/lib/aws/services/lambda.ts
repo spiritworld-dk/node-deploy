@@ -10,7 +10,7 @@ export async function syncLambda(
     env: LocalEnv,
     agent: Agent,
     prefix: string,
-    currentFunctions: AwsFunction[],
+    currentFunctions: AwsFunctionLite[],
     reflection: Reflection,
     environment: { [key: string]: string },
     role: string,
@@ -77,7 +77,7 @@ async function zip(code: string) {
 }
 
 type Architectures = ['arm64'] | ['x86_64']
-export interface AwsFunction {
+export interface AwsFunctionLite {
     id: string
     name: string
     runtime: string
@@ -88,64 +88,77 @@ export interface AwsFunction {
     hash: string
 }
 
+interface AwsFunction {
+    Description: string
+    TracingConfig: {
+        Mode: 'PassThrough'
+    }
+    RevisionId: string
+    LastModified: string
+    FunctionArn: string
+    FunctionName: string
+    Runtime: 'nodejs16.x'
+    Version: '$LATEST'
+    PackageType: 'Zip'
+    MemorySize: number
+    Timeout: number
+    Handler: 'index.handler'
+    CodeSha256: string
+    Role: string
+    SigningProfileVersionArn: null
+    MasterArn: null
+    CodeSize: number
+    State: null
+    StateReason: null
+    Environment: {
+        Variables: { [key: string]: string }
+        Error: null
+    }
+    EphemeralStorage: {
+        Size: number
+    }
+    StateReasonCode: null
+    LastUpdateStatusReasonCode: null
+    Architectures: Architectures
+}
+
 export async function getFunctions(
     env: LocalEnv,
     agent: Agent,
     prefix: string,
     service: string,
-): Promise<AwsFunction[]> {
-    const funcs = (await (
-        await throwOnNotOK(
-            'Error listing functions',
-            awsRequest(agent, env, 'GET', 'lambda', `/2015-03-31/functions/?MaxItems=5000`),
-        )
-    ).json()) as {
-        Functions: {
-            Description: string
-            TracingConfig: {
-                Mode: 'PassThrough'
-            }
-            RevisionId: string
-            LastModified: string
-            FunctionArn: string
-            FunctionName: string
-            Runtime: 'nodejs16.x'
-            Version: '$LATEST'
-            PackageType: 'Zip'
-            MemorySize: number
-            Timeout: number
-            Handler: 'index.handler'
-            CodeSha256: string
-            Role: string
-            SigningProfileVersionArn: null
-            MasterArn: null
-            CodeSize: number
-            State: null
-            StateReason: null
-            Environment: {
-                Variables: { [key: string]: string }
-                Error: null
-            }
-            EphemeralStorage: {
-                Size: number
-            }
-            StateReasonCode: null
-            LastUpdateStatusReasonCode: null
-            Architectures: Architectures
-        }[]
-        NextMarker: null
+): Promise<AwsFunctionLite[]> {
+    const funcs = []
+    let marker = ''
+    for (;;) {
+        const page = (await (
+            await throwOnNotOK(
+                'Error listing functions',
+                awsRequest(agent, env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
+            )
+        ).json()) as {
+            Functions: AwsFunction[]
+            NextMarker: string | null
+        }
+        funcs.push(...page.Functions)
+        if (page.NextMarker === null) {
+            break
+        }
+        marker = `Marker=${encodeURIComponent(page.NextMarker)}`
     }
     const fnPrefix = `${prefix}-${service}-`.toLowerCase()
-    return funcs.Functions.filter(fn => fn.FunctionName.startsWith(fnPrefix)).map(fn => ({
-        id: fn.FunctionArn,
-        name: fn.FunctionName.substring(fnPrefix.length),
-        runtime: fn.Runtime,
-        memory: fn.MemorySize,
-        timeout: fn.Timeout,
-        env: fn.Environment.Variables,
-        cpus: fn.Architectures,
-        hash: fn.CodeSha256,
-    }))
+    return funcs
+        .filter(fn => fn.FunctionName.startsWith(fnPrefix))
+        .map(fn => ({
+            id: fn.FunctionArn,
+            name: fn.FunctionName.substring(fnPrefix.length),
+            runtime: fn.Runtime,
+            memory: fn.MemorySize,
+            timeout: fn.Timeout,
+            env: fn.Environment.Variables,
+            cpus: fn.Architectures,
+            hash: fn.CodeSha256,
+        }))
 }
 
 type Config = {
@@ -201,7 +214,7 @@ async function updateLambda(
     service: string,
     role: string,
     config: Config | undefined,
-    awsFn: AwsFunction,
+    awsFn: AwsFunctionLite,
     environment: { [key: string]: string },
     code?: { zipped: string; sha256: string },
 ) {
