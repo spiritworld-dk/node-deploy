@@ -197,7 +197,6 @@ export const handler = awsHandler
                 }),
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
                 nodeResolve({
-                    browser: false,
                     exportConditions: ['node'],
                     rootDir: stagePath,
                 }),
