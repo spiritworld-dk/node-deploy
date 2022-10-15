@@ -422,7 +422,7 @@ async function syncGatewayApi(
 function corsSettings(corsSites: string[]) {
     return {
         allowOrigins: corsSites,
-        allowCredentials: true,
+        allowCredentials: !isDeepStrictEqual(corsSites, ['*']),
         maxAge: 600,
         allowMethods: ['*'],
         allowHeaders: ['*'],
