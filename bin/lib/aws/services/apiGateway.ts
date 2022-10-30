@@ -347,7 +347,7 @@ async function updateRoute(
     return await (
         await throwOnNotOK(
             'Error updating API route.',
-            awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/${apiId}/routes/${id}`, route),
+            awsRequest(agent, env, 'PATCH', 'apigateway', `/v2/apis/${apiId}/routes/${id}`, route),
         )
     ).text()
 }
