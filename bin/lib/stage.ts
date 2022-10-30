@@ -195,7 +195,6 @@ import { awsHandler } from '@riddance/aws-host/http'
 export const handler = awsHandler
 `,
                 }),
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
                 nodeResolve({
                     exportConditions: ['node'],
                     rootDir: stagePath,
@@ -234,7 +233,7 @@ export const handler = awsHandler
     return await Promise.all(minified)
 }
 
-async function pack(stagePath: string, fn: string, code: string, map?: SourceMap) {
+async function pack(stagePath: string, fn: string, code: string, map: SourceMap | null) {
     console.log(`minifying ${fn}`)
     const min = await minify(
         { [`${fn}.js`]: code },
