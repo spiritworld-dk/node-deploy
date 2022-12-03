@@ -1,7 +1,7 @@
 import type { Reflection } from '@riddance/host/reflect'
 import { Agent } from 'node:https'
 import { localAwsEnv } from './lite.js'
-import { getApis, syncGateway } from './services/apiGateway.js'
+import { getApi, syncGateway } from './services/apiGateway.js'
 import { getFunctions, syncLambda } from './services/lambda.js'
 import { assignPolicy, getRole, syncRole } from './services/roles.js'
 import { syncTriggers } from './services/triggers.js'
@@ -17,7 +17,7 @@ export async function getCurrentState(prefix: string, service: string) {
     const [role, functions, apis] = await Promise.all([
         getRole(env, agent, prefix, service),
         getFunctions(env, agent, prefix, service),
-        getApis(env, agent, prefix, service),
+        getApi(env, agent, prefix, service),
     ])
     return { role, functions, apis }
 }

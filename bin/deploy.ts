@@ -1,4 +1,5 @@
 import { reflect } from '@riddance/host/reflect'
+import { Resolver } from './lib/aws/resolve.js'
 import { getCurrentState, sync } from './lib/aws/sync.js'
 import { getGlue } from './lib/glue.js'
 import { stage } from './lib/stage.js'
@@ -11,7 +12,8 @@ const path = envArg ? pathOrEnvArg : process.cwd()
 const envName = envArg ? envArg : pathOrEnvArg
 
 try {
-    const { service, implementations, corsSites, env } = await getGlue(path, envName)
+    const resolver = new Resolver()
+    const { service, implementations, corsSites, env } = await getGlue(path, envName, resolver)
 
     const [currentState, reflection, code] = await Promise.all([
         getCurrentState(envName, service),
@@ -25,7 +27,7 @@ try {
         currentState,
         reflection,
         corsSites,
-        env,
+        await env,
         Object.fromEntries(code.map(c => [c.fn, c.code])),
     )
 

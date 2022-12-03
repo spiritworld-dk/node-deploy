@@ -141,12 +141,13 @@ async function syncIntegrations(
     return { ids, surplus }
 }
 
-type AwsGateway = Awaited<ReturnType<typeof getApis>>
+type AwsGateway = Awaited<ReturnType<typeof getApi>>
 
 export interface AwsGatewayApi {
     apiId: string
     name: string
     protocolType: 'HTTP' | 'REST'
+    apiEndpoint: string
     corsConfiguration: {
         allowOrigins: string[]
         allowCredentials: false
@@ -157,7 +158,7 @@ export interface AwsGatewayApi {
     }
 }
 
-export async function getApis(env: LocalEnv, agent: Agent, prefix: string, service: string) {
+export async function getApi(env: LocalEnv, agent: Agent, prefix: string, service: string) {
     const apis = (await (
         await throwOnNotOK(
             'Error getting APIs.',
