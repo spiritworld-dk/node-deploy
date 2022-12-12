@@ -14,7 +14,9 @@ export interface LocalEnv {
     AWS_SESSION_TOKEN?: string
 }
 
-export async function localAwsEnv(region?: string, profile?: string): Promise<LocalEnv> {
+let cachedConfigLines: string[] | undefined
+
+export async function localAwsEnv(region: string | undefined, profile: string): Promise<LocalEnv> {
     let { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY } = {
         AWS_REGION: region ?? process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION,
         AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
@@ -23,17 +25,26 @@ export async function localAwsEnv(region?: string, profile?: string): Promise<Lo
     if (AWS_REGION && AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY) {
         return { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY }
     }
-    const configLines = (
-        await readFile(
-            process.env.AWS_SHARED_CREDENTIALS_FILE ?? join(homedir(), '.aws', 'credentials'),
-            'ascii',
+    const configLines =
+        cachedConfigLines ??
+        (
+            await readFile(
+                process.env.AWS_SHARED_CREDENTIALS_FILE ?? join(homedir(), '.aws', 'credentials'),
+                'ascii',
+            )
         )
-    )
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => !!line && !line.startsWith('#'))
-    const section = `[${profile ?? 'default'}]`
-    const sectionBeginIx = configLines.findIndex(line => line === section)
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => !!line && !line.startsWith('#'))
+    // eslint-disable-next-line require-atomic-updates
+    cachedConfigLines = configLines
+
+    let sectionBeginIx = -1
+    const section = `[${profile}]`
+    sectionBeginIx = configLines.findIndex(line => line === section)
+    if (sectionBeginIx === -1) {
+        sectionBeginIx = configLines.findIndex(line => line === '[default]')
+    }
     if (sectionBeginIx === -1) {
         throw new Error('Section not found.')
     }

@@ -12,7 +12,7 @@ const path = envArg ? pathOrEnvArg : process.cwd()
 const envName = envArg ? envArg : pathOrEnvArg
 
 try {
-    const resolver = new Resolver()
+    const resolver = new Resolver(envName)
     const { service, implementations, corsSites, env, ...provider } = await getGlue(
         path,
         envName,

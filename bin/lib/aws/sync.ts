@@ -11,9 +11,8 @@ const agent = new Agent({
     maxSockets: 4,
 })
 
-const env = await localAwsEnv()
-
 export async function getCurrentState(prefix: string, service: string) {
+    const env = await localAwsEnv(undefined, prefix)
     const [role, functions, apis] = await Promise.all([
         getRole(env, agent, prefix, service),
         getFunctions(env, agent, prefix, service),
@@ -36,6 +35,7 @@ export async function sync(
         aws?: { policyStatements: { Effect: string; Resource: string; Action: string[] }[] }
     },
 ) {
+    const env = await localAwsEnv(undefined, prefix)
     const role = await syncRole(env, agent, prefix, service, currentState.role)
     const fns = await syncLambda(
         env,
