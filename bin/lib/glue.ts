@@ -28,12 +28,13 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver) 
             [key: string]: {
                 cors?: string
                 env: { [key: string]: string }
+                secrets: { [key: string]: string }
                 [provider: string]: unknown
             }
         }
     }
 
-    const { cors, env, ...provider } = glue.services[service] ?? {}
+    const { cors, env, secrets, ...provider } = glue.services[service] ?? {}
     return {
         service,
         implementations: {
@@ -45,6 +46,7 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver) 
                 ...glue.env,
                 ...env,
             },
+            secrets ?? {},
             prefix,
             service,
             resolver,
@@ -149,11 +151,16 @@ function variableError(message: string): never {
 }
 
 async function resolveEnv(
-    env: { [key: string]: string },
+    clear: { [key: string]: string },
+    secrets: { [key: string]: string },
     prefix: string,
     service: string,
     resolver: Resolver,
 ) {
+    const env = {
+        ...clear,
+        ...secrets,
+    }
     const referencedEnvironments: string[] = []
     const referencedBaseUrls: string[] = []
     for (const value of Object.values(env)) {
