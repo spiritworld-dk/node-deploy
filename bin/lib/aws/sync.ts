@@ -32,6 +32,9 @@ export async function sync(
     corsSites: string[],
     environment: { [key: string]: string },
     code: { [name: string]: string },
+    provider: {
+        aws?: { policyStatements: { Effect: string; Resource: string; Action: string[] }[] }
+    },
 ) {
     const role = await syncRole(env, agent, prefix, service, currentState.role)
     const fns = await syncLambda(
@@ -63,7 +66,15 @@ export async function sync(
 
     await syncTriggers(env, agent, prefix, service, fns, reflection, region, account, gatewayId)
 
-    await assignPolicy(env, agent, prefix, service, region, account)
+    await assignPolicy(
+        env,
+        agent,
+        prefix,
+        service,
+        region,
+        account,
+        provider.aws?.policyStatements ?? [],
+    )
 
     return `https://${gatewayId}.execute-api.eu-central-1.amazonaws.com/`
 }

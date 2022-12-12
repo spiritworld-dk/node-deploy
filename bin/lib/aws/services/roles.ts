@@ -109,6 +109,7 @@ export async function assignPolicy(
     service: string,
     region: string,
     account: string,
+    additionalStatements: { Effect: string; Resource: string; Action: string[] }[],
 ) {
     console.log('assigning policy')
     await (
@@ -163,6 +164,14 @@ export async function assignPolicy(
                                     'dax:Scan',
                                 ],
                             },
+                            ...additionalStatements.map(as => ({
+                                Effect: as.Effect,
+                                Resource: as.Resource.replaceAll('$REGION', region).replaceAll(
+                                    '$ACCOUNT',
+                                    account,
+                                ),
+                                Action: as.Action,
+                            })),
                         ],
                     }),
                 }).toString()}`,

@@ -28,11 +28,12 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver) 
             [key: string]: {
                 cors?: string
                 env: { [key: string]: string }
+                [provider: string]: unknown
             }
         }
     }
 
-    const { cors, env } = glue.services[service] ?? {}
+    const { cors, env, ...provider } = glue.services[service] ?? {}
     return {
         service,
         implementations: {
@@ -48,6 +49,7 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver) 
             service,
             resolver,
         ),
+        ...provider,
     }
 }
 

@@ -13,7 +13,11 @@ const envName = envArg ? envArg : pathOrEnvArg
 
 try {
     const resolver = new Resolver()
-    const { service, implementations, corsSites, env } = await getGlue(path, envName, resolver)
+    const { service, implementations, corsSites, env, ...provider } = await getGlue(
+        path,
+        envName,
+        resolver,
+    )
 
     const [currentState, reflection, code] = await Promise.all([
         getCurrentState(envName, service),
@@ -29,6 +33,7 @@ try {
         corsSites,
         await env,
         Object.fromEntries(code.map(c => [c.fn, c.code])),
+        provider,
     )
 
     console.log('done.')
