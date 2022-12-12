@@ -4,7 +4,7 @@ import { getCurrentState, sync } from './lib/aws/sync.js'
 import { getGlue } from './lib/glue.js'
 import { stage } from './lib/stage.js'
 
-const [, , pathOrEnvArg, envArg] = process.argv
+const [, , pathOrEnvArg, envArg, glueFile] = process.argv
 if (!pathOrEnvArg) {
     throw new Error('Please specify target environment name')
 }
@@ -17,6 +17,7 @@ try {
         path,
         envName,
         resolver,
+        glueFile,
     )
 
     const [currentState, reflection, code] = await Promise.all([

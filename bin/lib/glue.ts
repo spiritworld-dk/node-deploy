@@ -7,10 +7,10 @@ export interface Resolver {
     getBaseUrl(prefix: string, service: string): Promise<string | undefined>
 }
 
-export async function getGlue(path: string, prefix: string, resolver: Resolver) {
+export async function getGlue(path: string, prefix: string, resolver: Resolver, gluePath?: string) {
     const [packageJson, glueJson] = await Promise.all([
         readFile(join(path, 'package.json'), 'utf-8'),
-        readFile(join(path, '..', 'glue', 'glue.json'), 'utf-8'),
+        readFile(gluePath ?? join(path, '..', 'glue', 'glue.json'), 'utf-8'),
     ])
     const { name: service } = JSON.parse(packageJson) as { name: string }
     const glue = JSON.parse(glueJson) as {
