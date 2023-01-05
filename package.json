@@ -1,6 +1,6 @@
 {
     "name": "@riddance/aws-env",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "type": "module",
     "keywords": [
         "riddance",
@@ -22,6 +22,7 @@
         "bin/lib/aws/services/*.js"
     ],
     "bin": {
+        "aws-env": "./bin/cli.js",
         "deploy": "./bin/deploy.js"
     },
     "dependencies": {
