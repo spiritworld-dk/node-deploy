@@ -20,7 +20,6 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
                 version: string
             }
         }
-        env: { [key: string]: string }
         websites: {
             [key: string]: string[]
         }
@@ -41,16 +40,7 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
             ...glue.implementations,
         },
         corsSites: cors ? glue.websites[cors] ?? [] : [],
-        env: resolveEnv(
-            {
-                ...glue.env,
-                ...env,
-            },
-            secrets ?? {},
-            prefix,
-            service,
-            resolver,
-        ),
+        env: resolveEnv(env ?? {}, secrets ?? {}, prefix, service, resolver),
         ...provider,
     }
 }
