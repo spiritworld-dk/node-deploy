@@ -1,6 +1,6 @@
 {
   "name": "@riddance/aws-env",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "keywords": [
     "riddance",
@@ -27,16 +27,16 @@
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "2.0.2",
-    "@aws-sdk/signature-v4": "3.226.0",
-    "@riddance/host": "0.0.10",
-    "@rollup/plugin-commonjs": "24.0.0",
+    "@aws-sdk/signature-v4": "3.257.0",
+    "@riddance/host": "0.0.12",
+    "@rollup/plugin-commonjs": "24.0.1",
     "@rollup/plugin-json": "6.0.0",
     "@rollup/plugin-node-resolve": "15.0.1",
     "@rollup/plugin-virtual": "3.0.1",
     "jszip": "3.10.1",
-    "@riddance/fetch": "0.0.5",
-    "rollup": "3.9.1",
-    "terser": "5.16.1"
+    "@riddance/fetch": "0.0.7",
+    "rollup": "3.12.1",
+    "terser": "5.16.2"
   },
   "devDependencies": {
     "@riddance/env": "0.2.4",

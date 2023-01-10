@@ -1,6 +1,6 @@
 import sha256 from '@aws-crypto/sha256-js'
 import { SignatureV4 } from '@aws-sdk/signature-v4'
-import { fetch, throwOnNotOK } from '@riddance/fetch'
+import { fetch } from '@riddance/fetch'
 import { readFile } from 'node:fs/promises'
 import { Agent } from 'node:https'
 import { homedir } from 'node:os'
@@ -62,31 +62,6 @@ export async function localAwsEnv(region: string | undefined, profile: string): 
         throw new Error('Incomplete AWS credentials file.')
     }
     return { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY }
-}
-
-export async function okResponse(
-    response: Promise<{
-        ok?: boolean
-        status?: number
-        text: () => Promise<string>
-    }>,
-    errorMessage: string,
-) {
-    const r = await throwOnNotOK(response, errorMessage)
-    await r.text()
-}
-
-export async function jsonResponse<T>(
-    response: Promise<{
-        ok?: boolean
-        status?: number
-        text?: () => Promise<string>
-        json: () => Promise<unknown>
-    }>,
-    errorMessage: string,
-) {
-    const r = await throwOnNotOK(response, errorMessage)
-    return (await r.json()) as T
 }
 
 export function awsRequest(

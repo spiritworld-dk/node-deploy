@@ -1,9 +1,9 @@
-import { throwOnNotOK } from '@riddance/fetch'
+import { jsonResponse, okResponse, throwOnNotOK } from '@riddance/fetch'
 import { Reflection } from '@riddance/host/reflect'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
-import { awsRequest, jsonResponse, LocalEnv, okResponse } from '../lite.js'
+import { awsRequest, LocalEnv } from '../lite.js'
 
 export async function syncGateway(
     env: LocalEnv,

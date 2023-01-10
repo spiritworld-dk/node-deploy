@@ -1,8 +1,8 @@
-import { throwOnNotOK } from '@riddance/fetch'
+import { jsonResponse, okResponse, throwOnNotOK } from '@riddance/fetch'
 import { Agent } from 'node:https'
 import { setTimeout } from 'node:timers/promises'
 import { URLSearchParams } from 'node:url'
-import { awsRequest, jsonResponse, LocalEnv, okResponse } from '../lite.js'
+import { awsRequest, LocalEnv } from '../lite.js'
 
 export interface AwsRole {
     Arn: string

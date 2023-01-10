@@ -1,8 +1,9 @@
+import { jsonResponse, okResponse } from '@riddance/fetch'
 import { Reflection } from '@riddance/host/reflect'
 import { randomUUID } from 'node:crypto'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
-import { awsRequest, isNotFound, jsonResponse, LocalEnv, okResponse } from '../lite.js'
+import { awsRequest, isNotFound, LocalEnv } from '../lite.js'
 
 export async function syncTriggers(
     env: LocalEnv,

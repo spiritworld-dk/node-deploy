@@ -1,10 +1,11 @@
+import { jsonResponse, okResponse } from '@riddance/fetch'
 import { PackageJsonConfiguration, Reflection, resolveCpu } from '@riddance/host/reflect'
 import JSZip from 'jszip'
 import { createHash } from 'node:crypto'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
-import { awsRequest, jsonResponse, LocalEnv, okResponse, retry, retryConflict } from '../lite.js'
+import { awsRequest, LocalEnv, retry, retryConflict } from '../lite.js'
 
 export async function syncLambda(
     env: LocalEnv,
