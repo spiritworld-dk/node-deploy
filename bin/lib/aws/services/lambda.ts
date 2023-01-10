@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
-import { awsRequest, LocalEnv, retry, retryConflict, throwOnNotOK } from '../lite.js'
+import { awsRequest, jsonResponse, LocalEnv, okResponse, retry, retryConflict } from '../lite.js'
 
 export async function syncLambda(
     env: LocalEnv,
@@ -131,15 +131,13 @@ export async function getFunctions(
     const funcs = []
     let marker = ''
     for (;;) {
-        const page = (await (
-            await throwOnNotOK(
-                'Error listing functions',
-                awsRequest(agent, env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
-            )
-        ).json()) as {
+        const page = await jsonResponse<{
             Functions: AwsFunction[]
             NextMarker: string | null
-        }
+        }>(
+            awsRequest(agent, env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
+            'Error listing functions',
+        )
         funcs.push(...page.Functions)
         if (page.NextMarker === null) {
             break
@@ -182,27 +180,25 @@ async function createLambda(
         throw new Error('No code')
     }
     console.log('creating lambda ' + name)
-    const response = (await (
-        await throwOnNotOK(
-            'Error creating lambda ' + name,
-            retry(
-                () =>
-                    awsRequest(agent, env, 'POST', 'lambda', '/2015-03-31/functions', {
-                        FunctionName: `${prefix}-${service}-${name}`,
-                        Code: { ZipFile: code.zipped },
-                        PackageType: 'Zip',
-                        Architectures: lambdaArchitecture(config),
-                        ...lambdaConfig(config, role, environment),
-                        Tags: {
-                            framework: 'riddance',
-                            environment: prefix,
-                            service,
-                        },
-                    }),
-                r => (r.status === 400 ? 25 : undefined),
-            ),
-        )
-    ).json()) as { FunctionArn: string }
+    const response = await jsonResponse<{ FunctionArn: string }>(
+        retry(
+            () =>
+                awsRequest(agent, env, 'POST', 'lambda', '/2015-03-31/functions', {
+                    FunctionName: `${prefix}-${service}-${name}`,
+                    Code: { ZipFile: code.zipped },
+                    PackageType: 'Zip',
+                    Architectures: lambdaArchitecture(config),
+                    ...lambdaConfig(config, role, environment),
+                    Tags: {
+                        framework: 'riddance',
+                        environment: prefix,
+                        service,
+                    },
+                }),
+            r => (r.status === 400 ? 25 : undefined),
+        ),
+        'Error creating lambda ' + name,
+    )
     return { name, id: response.FunctionArn }
 }
 
@@ -227,8 +223,7 @@ async function updateLambda(
     const cpus = lambdaArchitecture(config)
     if (!isDeepStrictEqual({ cpus, hash: code.sha256 }, { cpus: awsFn.cpus, hash: awsFn.hash })) {
         console.log('updating code for lambda ' + name)
-        await throwOnNotOK(
-            'Error updating code for lambda ' + name,
+        await okResponse(
             awsRequest(
                 agent,
                 env,
@@ -240,6 +235,7 @@ async function updateLambda(
                     Architectures: cpus,
                 },
             ),
+            'Error updating code for lambda ' + name,
         )
     }
     const awsConfig = lambdaConfig(config, role, environment)
@@ -261,8 +257,7 @@ async function updateLambda(
     ) {
         console.log('updating config for lambda ' + name)
         await retryConflict(() =>
-            throwOnNotOK(
-                'Error updating config for lambda ' + name,
+            okResponse(
                 awsRequest(
                     agent,
                     env,
@@ -271,6 +266,7 @@ async function updateLambda(
                     `/2015-03-31/functions/${prefix}-${service}-${name}/configuration`,
                     awsConfig,
                 ),
+                'Error updating config for lambda ' + name,
             ),
         )
     }
@@ -284,8 +280,7 @@ async function deleteLambda(
     name: string,
 ) {
     console.log('deleting lambda ' + name)
-    await throwOnNotOK(
-        'Error deleting lambda ' + name,
+    await okResponse(
         awsRequest(
             agent,
             env,
@@ -293,6 +288,7 @@ async function deleteLambda(
             'lambda',
             `/2015-03-31/functions/${prefix}-${service}-${name}`,
         ),
+        'Error deleting lambda ' + name,
     )
 }
 

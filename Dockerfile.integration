@@ -1,0 +1,12 @@
+# Maintained by @riddance/env
+FROM node:16.19-alpine3.17
+
+RUN mkdir /app
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --progress false
+
+COPY . /app
+
+ENTRYPOINT node node_modules/@riddance/env/bin/build.js

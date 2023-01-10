@@ -1,6 +1,6 @@
 import sha256 from '@aws-crypto/sha256-js'
 import { SignatureV4 } from '@aws-sdk/signature-v4'
-import fetch, { Response } from 'node-fetch'
+import { fetch, throwOnNotOK } from '@riddance/fetch'
 import { readFile } from 'node:fs/promises'
 import { Agent } from 'node:https'
 import { homedir } from 'node:os'
@@ -62,6 +62,32 @@ export async function localAwsEnv(region: string | undefined, profile: string): 
         throw new Error('Incomplete AWS credentials file.')
     }
     return { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY }
+}
+
+export async function okResponse(
+    response: Promise<{
+        ok?: boolean
+        status?: number
+        text: () => Promise<string>
+        blob: () => Promise<void>
+    }>,
+    errorMessage: string,
+) {
+    const r = await throwOnNotOK(response, errorMessage)
+    await r.blob()
+}
+
+export async function jsonResponse<T>(
+    response: Promise<{
+        ok?: boolean
+        status?: number
+        text?: () => Promise<string>
+        json: () => Promise<unknown>
+    }>,
+    errorMessage: string,
+) {
+    const r = await throwOnNotOK(response, errorMessage)
+    return (await r.json()) as T
 }
 
 export function awsRequest(
@@ -156,22 +182,9 @@ function subdomain(service: string, region: string) {
     }
 }
 
-export async function throwOnNotOK(message: string, responsePromise: Promise<Response> | Response) {
-    const response = await responsePromise
-    if (!response.ok) {
-        const body = await response.text()
-        throw Object.assign(new Error(`${message}, status ${response.status}, body: ${body}`), {
-            url: response.url,
-            statusCode: response.status,
-            body,
-        })
-    }
-    return response
-}
-
-export async function retry(
-    request: () => Promise<Response>,
-    when: (response: Response) => number | undefined,
+export async function retry<T extends { url: string; text: () => Promise<string> }>(
+    request: () => Promise<T>,
+    when: (response: T) => number | undefined,
 ) {
     for (let attempts = 0; ; ++attempts) {
         const response = await request()

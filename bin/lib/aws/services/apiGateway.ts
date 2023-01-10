@@ -1,8 +1,9 @@
+import { throwOnNotOK } from '@riddance/fetch'
 import { Reflection } from '@riddance/host/reflect'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
-import { awsRequest, LocalEnv, throwOnNotOK } from '../lite.js'
+import { awsRequest, jsonResponse, LocalEnv, okResponse } from '../lite.js'
 
 export async function syncGateway(
     env: LocalEnv,
@@ -159,12 +160,10 @@ export interface AwsGatewayApi {
 }
 
 export async function getApi(env: LocalEnv, agent: Agent, prefix: string, service: string) {
-    const apis = (await (
-        await throwOnNotOK(
-            'Error getting APIs.',
-            awsRequest(agent, env, 'GET', 'apigateway', `/v2/apis/`),
-        )
-    ).json()) as { items: AwsGatewayApi[] }
+    const apis = await jsonResponse<{ items: AwsGatewayApi[] }>(
+        awsRequest(agent, env, 'GET', 'apigateway', `/v2/apis/`),
+        'Error getting APIs.',
+    )
     const [api] = apis.items.filter(a => a.name === `${prefix}-${service}`)
     if (!api) {
         return { integrations: [], routes: [] }
@@ -187,14 +186,12 @@ export interface AwsIntegration {
 }
 
 async function getIntegrations(env: LocalEnv, agent: Agent, apiId: string) {
-    return (await (
-        await throwOnNotOK(
-            'Error getting API integrations.',
-            awsRequest(agent, env, 'GET', 'apigateway', `/v2/apis/${apiId}/integrations`),
-        )
-    ).json()) as {
+    return await jsonResponse<{
         items: (AwsIntegration & { integrationId: string })[]
-    }
+    }>(
+        awsRequest(agent, env, 'GET', 'apigateway', `/v2/apis/${apiId}/integrations`),
+        'Error getting API integrations.',
+    )
 }
 
 function asIntegration(
@@ -225,19 +222,10 @@ async function createIntegration(
     integration: AwsIntegration,
 ) {
     console.log('creating API integration')
-    const created = (await (
-        await throwOnNotOK(
-            'Error creating API integration.',
-            awsRequest(
-                agent,
-                env,
-                'POST',
-                'apigateway',
-                `/v2/apis/${apiId}/integrations`,
-                integration,
-            ),
-        )
-    ).json()) as { integrationId: string }
+    const created = await jsonResponse<{ integrationId: string }>(
+        awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/${apiId}/integrations`, integration),
+        'Error creating API integration.',
+    )
     return [name, created.integrationId] as [string, string]
 }
 
@@ -249,19 +237,17 @@ async function updateIntegration(
     integration: AwsIntegration,
 ) {
     console.log('updating API integration')
-    await (
-        await throwOnNotOK(
-            'Error updating API integration',
-            awsRequest(
-                agent,
-                env,
-                'PATCH',
-                'apigateway',
-                `/v2/apis/${apiId}/integrations/${id}`,
-                integration,
-            ),
-        )
-    ).text()
+    await okResponse(
+        awsRequest(
+            agent,
+            env,
+            'PATCH',
+            'apigateway',
+            `/v2/apis/${apiId}/integrations/${id}`,
+            integration,
+        ),
+        'Error updating API integration',
+    )
 }
 
 async function deleteIntegration(
@@ -276,12 +262,10 @@ async function deleteIntegration(
         throw new Error('Weird')
     }
     console.log('deleting API integration')
-    await (
-        await throwOnNotOK(
-            'Error deleting API integration.',
-            awsRequest(agent, env, 'DELETE', 'apigateway', `/v2/apis/${apiId}/integrations/${id}`),
-        )
-    ).text()
+    await okResponse(
+        awsRequest(agent, env, 'DELETE', 'apigateway', `/v2/apis/${apiId}/integrations/${id}`),
+        'Error deleting API integration.',
+    )
 }
 
 export interface AwsRoute {
@@ -317,24 +301,20 @@ function trimTrailingSlash(pathPattern: string) {
 }
 
 async function getRoutes(env: LocalEnv, agent: Agent, apiId: string) {
-    return (await (
-        await throwOnNotOK(
-            'Error getting API routes.',
-            awsRequest(agent, env, 'GET', 'apigateway', `/v2/apis/${apiId}/routes`),
-        )
-    ).json()) as {
+    return await jsonResponse<{
         items: (AwsRoute & { routeId: string })[]
-    }
+    }>(
+        awsRequest(agent, env, 'GET', 'apigateway', `/v2/apis/${apiId}/routes`),
+        'Error getting API routes.',
+    )
 }
 
 async function createRoute(env: LocalEnv, agent: Agent, apiId: string, route: AwsRoute) {
     console.log('creating route')
-    return await (
-        await throwOnNotOK(
-            'Error creating API route.',
-            awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/${apiId}/routes`, route),
-        )
-    ).text()
+    return await okResponse(
+        awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/${apiId}/routes`, route),
+        'Error creating API route.',
+    )
 }
 
 async function updateRoute(
@@ -345,22 +325,18 @@ async function updateRoute(
     route: AwsRoute,
 ) {
     console.log(`updating API route ${id}`)
-    return await (
-        await throwOnNotOK(
-            'Error updating API route.',
-            awsRequest(agent, env, 'PATCH', 'apigateway', `/v2/apis/${apiId}/routes/${id}`, route),
-        )
-    ).text()
+    return await okResponse(
+        awsRequest(agent, env, 'PATCH', 'apigateway', `/v2/apis/${apiId}/routes/${id}`, route),
+        'Error updating API route.',
+    )
 }
 
 async function deleteRoute(env: LocalEnv, agent: Agent, apiId: string, id: string) {
     console.log(`deleting API route ${id}`)
-    return await (
-        await throwOnNotOK(
-            'Error deleting API route.',
-            awsRequest(agent, env, 'DELETE', 'apigateway', `/v2/apis/${apiId}/routes/${id}`),
-        )
-    ).text()
+    return await okResponse(
+        awsRequest(agent, env, 'DELETE', 'apigateway', `/v2/apis/${apiId}/routes/${id}`),
+        'Error deleting API route.',
+    )
 }
 
 async function createGateway(
@@ -371,21 +347,19 @@ async function createGateway(
     corsSites: string[],
 ) {
     console.log('creating gateway')
-    const gateway = (await (
-        await throwOnNotOK(
-            'Error creating gateway.',
-            awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/`, {
-                name: `${prefix}-${service}`,
-                protocolType: 'HTTP',
-                corsConfiguration: corsSettings(corsSites),
-                tags: {
-                    framework: 'riddance',
-                    environment: prefix,
-                    service,
-                },
-            }),
-        )
-    ).json()) as { apiId: string }
+    const gateway = await jsonResponse<{ apiId: string }>(
+        awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/`, {
+            name: `${prefix}-${service}`,
+            protocolType: 'HTTP',
+            corsConfiguration: corsSettings(corsSites),
+            tags: {
+                framework: 'riddance',
+                environment: prefix,
+                service,
+            },
+        }),
+        'Error creating gateway.',
+    )
     await syncStage(env, agent, prefix, service, gateway.apiId, undefined)
     return gateway
 }
@@ -403,21 +377,19 @@ async function syncGatewayApi(
         return
     }
     console.log('updating gateway')
-    await (
-        await throwOnNotOK(
-            'Error updating gateway.',
-            awsRequest(agent, env, 'PATCH', 'apigateway', `/v2/apis/${gateway.apiId}`, {
-                name: `${prefix}-${service}`,
-                protocolType: 'HTTP',
-                corsConfiguration,
-                tags: {
-                    framework: 'riddance',
-                    environment: prefix,
-                    service,
-                },
-            }),
-        )
-    ).text()
+    await okResponse(
+        awsRequest(agent, env, 'PATCH', 'apigateway', `/v2/apis/${gateway.apiId}`, {
+            name: `${prefix}-${service}`,
+            protocolType: 'HTTP',
+            corsConfiguration,
+            tags: {
+                framework: 'riddance',
+                environment: prefix,
+                service,
+            },
+        }),
+        'Error updating gateway.',
+    )
 }
 
 function corsSettings(corsSites: string[]) {
@@ -468,7 +440,7 @@ async function getStage(env: LocalEnv, agent: Agent, apiId: string) {
     if (response.status === 404) {
         return undefined
     }
-    await throwOnNotOK('Error getting API stage.', response)
+    await throwOnNotOK(response, 'Error getting API stage.')
     return (await response.json()) as ApiStage
 }
 
@@ -481,19 +453,17 @@ async function syncStage(
     stage: ApiStage | undefined,
 ) {
     if (!stage) {
-        await (
-            await throwOnNotOK(
-                'Error creating stage.',
-                awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/${apiId}/stages`, {
-                    stageName: '$default',
-                    autoDeploy: true,
-                    tags: {
-                        framework: 'riddance',
-                        environment: prefix,
-                        service,
-                    },
-                }),
-            )
-        ).text()
+        await okResponse(
+            awsRequest(agent, env, 'POST', 'apigateway', `/v2/apis/${apiId}/stages`, {
+                stageName: '$default',
+                autoDeploy: true,
+                tags: {
+                    framework: 'riddance',
+                    environment: prefix,
+                    service,
+                },
+            }),
+            'Error creating stage.',
+        )
     }
 }

@@ -1,49 +1,50 @@
 {
-    "name": "@riddance/aws-env",
-    "version": "0.0.4",
-    "type": "module",
-    "keywords": [
-        "riddance",
-        "environment",
-        "devops",
-        "opinionated",
-        "aws",
-        "lambda"
-    ],
-    "license": "MIT",
-    "engines": {
-        "node": ">=16"
-    },
-    "files": [
-        "*.js",
-        "bin/*.js",
-        "bin/lib/*.js",
-        "bin/lib/aws/*.js",
-        "bin/lib/aws/services/*.js"
-    ],
-    "bin": {
-        "aws-env": "./bin/cli.js",
-        "deploy": "./bin/deploy.js"
-    },
-    "dependencies": {
-        "@aws-crypto/sha256-js": "2.0.2",
-        "@aws-sdk/signature-v4": "3.226.0",
-        "@riddance/host": "0.0.9",
-        "@rollup/plugin-commonjs": "24.0.0",
-        "@rollup/plugin-json": "6.0.0",
-        "@rollup/plugin-node-resolve": "15.0.1",
-        "@rollup/plugin-virtual": "3.0.1",
-        "jszip": "3.10.1",
-        "node-fetch": "3.3.0",
-        "rollup": "3.9.1",
-        "terser": "5.16.1"
-    },
-    "devDependencies": {
-        "@riddance/env": "0.1.2",
-        "@types/node": "^16"
-    },
-    "scripts": {
-        "prepare": "tsc",
-        "watch": "watch"
-    }
+  "name": "@riddance/aws-env",
+  "version": "0.0.4",
+  "type": "module",
+  "keywords": [
+    "riddance",
+    "environment",
+    "devops",
+    "opinionated",
+    "aws",
+    "lambda"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "*.js",
+    "bin/*.js",
+    "bin/lib/*.js",
+    "bin/lib/aws/*.js",
+    "bin/lib/aws/services/*.js"
+  ],
+  "bin": {
+    "aws-env": "./bin/cli.js",
+    "deploy": "./bin/deploy.js"
+  },
+  "dependencies": {
+    "@aws-crypto/sha256-js": "2.0.2",
+    "@aws-sdk/signature-v4": "3.226.0",
+    "@riddance/host": "0.0.10",
+    "@rollup/plugin-commonjs": "24.0.0",
+    "@rollup/plugin-json": "6.0.0",
+    "@rollup/plugin-node-resolve": "15.0.1",
+    "@rollup/plugin-virtual": "3.0.1",
+    "jszip": "3.10.1",
+    "@riddance/fetch": "0.0.5",
+    "rollup": "3.9.1",
+    "terser": "5.16.1"
+  },
+  "devDependencies": {
+    "@riddance/env": "0.2.4",
+    "@types/node": "^16"
+  },
+  "scripts": {
+    "prepare": "tsc",
+    "prepack": "node node_modules/@riddance/env/bin/build.js",
+    "start": "watch"
+  }
 }

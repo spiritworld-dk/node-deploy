@@ -2,7 +2,7 @@ import { Reflection } from '@riddance/host/reflect'
 import { randomUUID } from 'node:crypto'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
-import { awsRequest, isNotFound, LocalEnv, throwOnNotOK } from '../lite.js'
+import { awsRequest, isNotFound, jsonResponse, LocalEnv, okResponse } from '../lite.js'
 
 export async function syncTriggers(
     env: LocalEnv,
@@ -87,20 +87,16 @@ export async function getTriggers(
                     statements: (
                         JSON.parse(
                             (
-                                (await (
-                                    await throwOnNotOK(
-                                        'Error getting triggers.',
-                                        awsRequest(
-                                            agent,
-                                            env,
-                                            'GET',
-                                            'lambda',
-                                            `/2015-03-31/functions/${prefix}-${service}-${fn.name}/policy/`,
-                                        ),
-                                    )
-                                ).json()) as {
-                                    Policy: string
-                                }
+                                await jsonResponse<{ Policy: string }>(
+                                    awsRequest(
+                                        agent,
+                                        env,
+                                        'GET',
+                                        'lambda',
+                                        `/2015-03-31/functions/${prefix}-${service}-${fn.name}/policy/`,
+                                    ),
+                                    'Error getting triggers.',
+                                )
                             ).Policy,
                         ) as { Statement: AwsStatement[] }
                     ).Statement,
@@ -129,24 +125,22 @@ async function addTrigger(
     statement: ReturnType<typeof makeStatementData>,
 ) {
     console.log('Adding trigger ' + id)
-    await (
-        await throwOnNotOK(
-            'Error adding triggers.',
-            awsRequest(
-                agent,
-                env,
-                'POST',
-                'lambda',
-                `/2015-03-31/functions/${prefix}-${service}-${name}/policy/`,
-                {
-                    StatementId: id,
-                    Action: statement.Action,
-                    Principal: statement.Principal.Service,
-                    SourceArn: statement.Condition.ArnLike['AWS:SourceArn'],
-                },
-            ),
-        )
-    ).blob()
+    await okResponse(
+        awsRequest(
+            agent,
+            env,
+            'POST',
+            'lambda',
+            `/2015-03-31/functions/${prefix}-${service}-${name}/policy/`,
+            {
+                StatementId: id,
+                Action: statement.Action,
+                Principal: statement.Principal.Service,
+                SourceArn: statement.Condition.ArnLike['AWS:SourceArn'],
+            },
+        ),
+        'Error adding triggers.',
+    )
 }
 
 async function deleteTrigger(
@@ -158,18 +152,16 @@ async function deleteTrigger(
     id: string,
 ) {
     console.log('Deleting trigger ' + id)
-    await (
-        await throwOnNotOK(
-            'Error deleting triggers.',
-            awsRequest(
-                agent,
-                env,
-                'DELETE',
-                'lambda',
-                `/2015-03-31/functions/${prefix}-${service}-${name}/policy/${id}`,
-            ),
-        )
-    ).blob()
+    await okResponse(
+        awsRequest(
+            agent,
+            env,
+            'DELETE',
+            'lambda',
+            `/2015-03-31/functions/${prefix}-${service}-${name}/policy/${id}`,
+        ),
+        'Error deleting triggers.',
+    )
 }
 
 function makeStatementData(
