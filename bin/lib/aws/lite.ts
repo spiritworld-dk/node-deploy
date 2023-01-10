@@ -69,12 +69,11 @@ export async function okResponse(
         ok?: boolean
         status?: number
         text: () => Promise<string>
-        blob: () => Promise<void>
     }>,
     errorMessage: string,
 ) {
     const r = await throwOnNotOK(response, errorMessage)
-    await r.blob()
+    await r.text()
 }
 
 export async function jsonResponse<T>(

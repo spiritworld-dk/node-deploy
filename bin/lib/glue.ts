@@ -45,13 +45,12 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
     }
 }
 
+const own = Symbol()
+
 interface Variable {
     pattern: RegExp
-    source: (
-        match: RegExpMatchArray,
-        self: string,
-    ) => {
-        environment?: string
+    source: (match: RegExpMatchArray) => {
+        environment?: string | typeof own
         baseUrl?: string
     }
     value: (
@@ -77,7 +76,7 @@ const variables: Variable[] = [
     },
     {
         pattern: /\$PRIVATE_KEY\(([^)]+)\)/gu,
-        source: (_match, self) => ({ environment: self }),
+        source: () => ({ environment: own }),
         value: (_prefix, service, [_, curve], key, env) =>
             env[service]?.[key] ??
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -90,7 +89,7 @@ const variables: Variable[] = [
     },
     {
         pattern: /\$RANDOM\(([0-9]+)\)/gu,
-        source: (_match, self) => ({ environment: self }),
+        source: () => ({ environment: own }),
         value: (_prefix, service, [_, bits], key, env, _url) =>
             env[service]?.[key] ?? randomBytes(Math.ceil(Number(bits) / 8)).toString('hex'),
     },
@@ -153,15 +152,21 @@ async function resolveEnv(
     }
     const referencedEnvironments: string[] = []
     const referencedBaseUrls: string[] = []
-    for (const value of Object.values(env)) {
+    const selfReferencing: { key: string; v: Variable; match: RegExpMatchArray }[] = []
+    for (const [key, value] of Object.entries(env)) {
         for (const v of variables) {
             for (const match of value.matchAll(v.pattern)) {
-                const s = v.source(match, service)
-                if (s.environment && !referencedEnvironments.includes(s.environment)) {
-                    referencedEnvironments.push(s.environment)
+                const source = v.source(match)
+                const sourceEnvName = source.environment === own ? service : source.environment
+                if (sourceEnvName && !referencedEnvironments.includes(sourceEnvName)) {
+                    if (source.environment === service) {
+                        selfReferencing.push({ key, v, match })
+                    } else {
+                        referencedEnvironments.push(sourceEnvName)
+                    }
                 }
-                if (s.baseUrl && !referencedBaseUrls.includes(s.baseUrl)) {
-                    referencedBaseUrls.push(s.baseUrl)
+                if (source.baseUrl && !referencedBaseUrls.includes(source.baseUrl)) {
+                    referencedBaseUrls.push(source.baseUrl)
                 }
             }
         }
@@ -173,6 +178,13 @@ async function resolveEnv(
     for (const v of variables) {
         for (const [key, value] of Object.entries(env)) {
             env[key] = value.replaceAll(v.pattern, (substring, ...matches: string[]) => {
+                if (
+                    selfReferencing.find(
+                        r => r.key === key && r.v === v && r.match[0] === substring,
+                    )
+                ) {
+                    return substring
+                }
                 const s = v.value(
                     prefix,
                     service,
@@ -185,6 +197,25 @@ async function resolveEnv(
             })
         }
     }
+
+    for (const ref of selfReferencing) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        env[ref.key] = env[ref.key]!.replaceAll(
+            ref.v.pattern,
+            (substring, ...matches: string[]) => {
+                const s = ref.v.value(
+                    prefix,
+                    service,
+                    [substring, ...matches],
+                    ref.key,
+                    { [service]: env },
+                    baseUrls,
+                )
+                return s
+            },
+        )
+    }
+
     return env
 }
 
