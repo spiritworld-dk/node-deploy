@@ -1,6 +1,6 @@
-import sha256 from '@aws-crypto/sha256-js'
 import { SignatureV4 } from '@aws-sdk/signature-v4'
 import { fetch } from '@riddance/fetch'
+import { createHash, createHmac, Hash, Hmac } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { Agent } from 'node:https'
 import { homedir } from 'node:os'
@@ -114,7 +114,7 @@ async function awsStringRequest(
     const signer = new SignatureV4({
         service,
         region: service !== 'iam' ? env.AWS_REGION : 'us-east-1',
-        sha256: sha256.Sha256,
+        sha256: AwsHash,
         credentials: {
             accessKeyId: env.AWS_ACCESS_KEY_ID,
             secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
@@ -196,4 +196,45 @@ export async function retryConflict<T>(fn: () => Promise<T>): Promise<T> {
             await setTimeout(((Math.random() + 0.5) * 500) / 2)
         }
     }
+}
+
+type SourceData = string | ArrayBuffer | ArrayBufferView
+
+class AwsHash {
+    readonly #secret?: SourceData
+    #hash: Hash | Hmac
+
+    constructor(secret?: SourceData) {
+        this.#secret = secret
+        this.#hash = makeHash(this.#secret)
+    }
+
+    digest() {
+        return Promise.resolve(this.#hash.digest())
+    }
+
+    reset() {
+        this.#hash = makeHash(this.#secret)
+    }
+
+    update(chunk: Uint8Array) {
+        this.#hash.update(new Uint8Array(Buffer.from(chunk)))
+    }
+}
+
+function makeHash(secret?: SourceData) {
+    return secret ? createHmac('sha256', castSourceData(secret)) : createHash('sha256')
+}
+
+function castSourceData(data: SourceData) {
+    if (Buffer.isBuffer(data)) {
+        return data
+    }
+    if (typeof data === 'string') {
+        return Buffer.from(data)
+    }
+    if (ArrayBuffer.isView(data)) {
+        return Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+    }
+    return Buffer.from(data)
 }
