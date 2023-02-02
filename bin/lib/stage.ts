@@ -5,7 +5,7 @@ import virtual from '@rollup/plugin-virtual'
 import { createHash } from 'node:crypto'
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import zlib from 'node:zlib'
 import { rollup, RollupCache, SourceMap } from 'rollup'
@@ -209,6 +209,13 @@ export const handler = awsHandler
                     return
                 }
                 console.warn(`${warning.code ?? warning.message} [${fn}]`)
+                if (
+                    warning.code === 'CIRCULAR_DEPENDENCY' &&
+                    warning.ids &&
+                    warning.ids.length !== 0
+                ) {
+                    console.warn(warning.ids.map(p => relative(stagePath, p)).join(' -> '))
+                }
             },
         })
         rollupCache = bundler.cache
