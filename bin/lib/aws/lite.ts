@@ -1,6 +1,6 @@
 import { SignatureV4 } from '@aws-sdk/signature-v4'
-import { fetch } from '@riddance/fetch'
-import { createHash, createHmac, Hash, Hmac } from 'node:crypto'
+import { fetch, thrownHasStatus } from '@riddance/fetch'
+import { Hash, Hmac, createHash, createHmac } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { Agent } from 'node:https'
 import { homedir } from 'node:os'
@@ -171,16 +171,12 @@ export async function retry<T extends { url: string; text: () => Promise<string>
     }
 }
 
-function statusCode<T>(e: T) {
-    return (e as unknown as { statusCode?: number }).statusCode
+export function isNotFound(e: unknown) {
+    return thrownHasStatus(e, 404)
 }
 
-export function isNotFound<T>(e: T) {
-    return statusCode(e) === 404
-}
-
-export function isConflict<T>(e: T) {
-    return statusCode(e) === 409
+export function isConflict(e: unknown) {
+    return thrownHasStatus(e, 409)
 }
 
 export async function retryConflict<T>(fn: () => Promise<T>): Promise<T> {
