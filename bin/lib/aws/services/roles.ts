@@ -1,10 +1,9 @@
 import { jsonResponse, okResponse, throwOnNotOK } from '@riddance/fetch'
 import { Agent } from 'node:https'
 import { setTimeout } from 'node:timers/promises'
-import { URLSearchParams } from 'node:url'
-import { awsRequest, LocalEnv } from '../lite.js'
+import { LocalEnv, awsRequest } from '../lite.js'
 
-export interface AwsRole {
+export type AwsRole = {
     Arn: string
     AssumeRolePolicyDocument: string
     CreateDate: number

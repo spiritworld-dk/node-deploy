@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
-import { awsRequest, LocalEnv, retry, retryConflict } from '../lite.js'
+import { LocalEnv, awsRequest, retry, retryConflict } from '../lite.js'
 
 export async function syncLambda(
     env: LocalEnv,
@@ -78,7 +78,7 @@ async function zip(code: string) {
 }
 
 type Architectures = ['arm64'] | ['x86_64']
-export interface AwsFunctionLite {
+export type AwsFunctionLite = {
     id: string
     name: string
     runtime: string
@@ -89,7 +89,7 @@ export interface AwsFunctionLite {
     hash: string
 }
 
-interface AwsFunction {
+type AwsFunction = {
     Description: string
     TracingConfig: {
         Mode: 'PassThrough'
@@ -98,7 +98,7 @@ interface AwsFunction {
     LastModified: string
     FunctionArn: string
     FunctionName: string
-    Runtime: 'nodejs16.x'
+    Runtime: 'nodejs18.x'
     Version: '$LATEST'
     PackageType: 'Zip'
     MemorySize: number
@@ -296,7 +296,7 @@ async function deleteLambda(
 function lambdaConfig(config: Config, role: string, environment: { [key: string]: string }) {
     return {
         Role: role,
-        Runtime: 'nodejs16.x',
+        Runtime: 'nodejs18.x',
         Handler: 'index.handler',
         Timeout: config.timeout ?? 15,
         MemorySize: config.compute === 'high' || config.memory === 'high' ? 3008 : 128,

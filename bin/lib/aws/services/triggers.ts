@@ -3,7 +3,7 @@ import { Reflection } from '@riddance/host/reflect'
 import { randomUUID } from 'node:crypto'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
-import { awsRequest, isNotFound, LocalEnv } from '../lite.js'
+import { LocalEnv, awsRequest, isNotFound } from '../lite.js'
 
 export async function syncTriggers(
     env: LocalEnv,
@@ -53,7 +53,7 @@ export async function syncTriggers(
     )
 }
 
-export interface AwsTrigger {
+export type AwsTrigger = {
     id: string
     name: string
     config?: {
@@ -63,7 +63,7 @@ export interface AwsTrigger {
     statements?: AwsStatement[]
 }
 
-interface AwsStatement {
+type AwsStatement = {
     Sid: string
     Effect: string
     Principal: { Service: string }

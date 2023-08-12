@@ -3,7 +3,7 @@ import { Reflection } from '@riddance/host/reflect'
 import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
-import { awsRequest, LocalEnv } from '../lite.js'
+import { LocalEnv, awsRequest } from '../lite.js'
 
 export async function syncGateway(
     env: LocalEnv,
@@ -144,7 +144,7 @@ async function syncIntegrations(
 
 type AwsGateway = Awaited<ReturnType<typeof getApi>>
 
-export interface AwsGatewayApi {
+export type AwsGatewayApi = {
     apiId: string
     name: string
     protocolType: 'HTTP' | 'REST'
@@ -176,7 +176,7 @@ export async function getApi(env: LocalEnv, agent: Agent, prefix: string, servic
     return { api, integrations: integrations.items, routes: routes.items, stage }
 }
 
-export interface AwsIntegration {
+export type AwsIntegration = {
     payloadFormatVersion: '2.0'
     integrationType: 'AWS_PROXY'
     integrationMethod: string
@@ -268,7 +268,7 @@ async function deleteIntegration(
     )
 }
 
-export interface AwsRoute {
+export type AwsRoute = {
     routeKey: string
     authorizationType: 'NONE'
     apiKeyRequired: false
@@ -403,7 +403,7 @@ function corsSettings(corsSites: string[]) {
     }
 }
 
-export interface ApiStage {
+export type ApiStage = {
     stageName: string
     description: string
     deploymentId: string

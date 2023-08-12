@@ -2,7 +2,7 @@ import { createPublicKey, generateKeyPairSync, randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-export interface Resolver {
+export type Resolver = {
     getEnvironment(prefix: string, service: string): Promise<{ [key: string]: string }>
     getBaseUrl(prefix: string, service: string): Promise<string | undefined>
 }
@@ -47,7 +47,7 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
 
 const own = Symbol()
 
-interface Variable {
+type Variable = {
     pattern: RegExp
     source: (match: RegExpMatchArray) => {
         environment?: string | typeof own

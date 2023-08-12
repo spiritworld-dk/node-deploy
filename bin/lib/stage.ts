@@ -12,7 +12,7 @@ import { rollup, RollupCache, SourceMap } from 'rollup'
 import { minify } from 'terser'
 import { install } from './npm.js'
 
-interface Implementation {
+type Implementation = {
     implementation: string
     version: string
 }
@@ -222,6 +222,7 @@ export const handler = awsHandler
         const { output } = await bundler.generate({
             format: 'cjs',
             compact: true,
+            sourcemap: true,
             manualChunks: () => 'entry.js',
             generatedCode: {
                 preset: 'es2015',
@@ -230,17 +231,24 @@ export const handler = awsHandler
                 objectShorthand: true,
             },
         })
-        if (output.length !== 1) {
-            console.log(output)
+        if (output.length !== 2) {
+            console.log(output[2])
+            throw new Error('Weird')
+        }
+        if (output[1]?.type !== 'asset' || output[1].fileName !== '_virtual_entry.js.map') {
+            console.log(output[2])
             throw new Error('Weird')
         }
         const [{ code, map }] = output
-        minified.push(pack(stagePath, fn, code, map))
+        if (!map || map.version !== 3) {
+            throw new Error('Source map missing.')
+        }
+        minified.push(pack(stagePath, fn, code, { ...map, version: 3 }))
     }
     return await Promise.all(minified)
 }
 
-async function pack(stagePath: string, fn: string, code: string, map: SourceMap | null) {
+async function pack(stagePath: string, fn: string, code: string, map: SourceMap & { version: 3 }) {
     console.log(`minifying ${fn}`)
     const min = await minify(
         { [`${fn}.js`]: code },
