@@ -149,7 +149,7 @@ export async function getFunctions(
             runtime: fn.Runtime,
             memory: fn.MemorySize,
             timeout: fn.Timeout,
-            env: fn.Environment.Variables,
+            env: fn.Environment?.Variables ?? [],
             cpus: fn.Architectures,
             hash: fn.CodeSha256,
         }))
