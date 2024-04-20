@@ -1,6 +1,6 @@
 {
-  "name": "@riddance/aws-env",
-  "version": "0.0.7",
+  "name": "@riddance/deploy",
+  "version": "0.0.1",
   "type": "module",
   "keywords": [
     "riddance",
@@ -22,8 +22,8 @@
     "bin/lib/aws/services/*.js"
   ],
   "bin": {
-    "aws-env": "./bin/cli.js",
-    "deploy": "./bin/deploy.js"
+    "cli": "bin/cli.js",
+    "deploy": "bin/deploy.js"
   },
   "dependencies": {
     "@smithy/signature-v4": "2.3.0",
