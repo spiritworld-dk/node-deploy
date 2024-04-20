@@ -222,17 +222,15 @@ async function resolveEnv(
 async function fetchEnvironments(prefix: string, services: string[], resolver: Resolver) {
     return Object.fromEntries(
         await Promise.all(
-            services.map(async s => pair(s, await resolver.getEnvironment(prefix, s))),
+            services.map(async s => [s, await resolver.getEnvironment(prefix, s)] as const),
         ),
     )
 }
 
 async function fetchBaseUrls(prefix: string, services: string[], resolver: Resolver) {
     return Object.fromEntries(
-        await Promise.all(services.map(async s => pair(s, await resolver.getBaseUrl(prefix, s)))),
+        await Promise.all(
+            services.map(async s => [s, await resolver.getBaseUrl(prefix, s)] as const),
+        ),
     )
-}
-
-function pair<T, S>(a: T, b: S) {
-    return [a, b] as [T, S]
 }
