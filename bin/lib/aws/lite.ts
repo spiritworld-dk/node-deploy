@@ -1,8 +1,7 @@
-import { SignatureV4 } from '@aws-sdk/signature-v4'
-import { fetch, thrownHasStatus } from '@riddance/fetch'
+import { thrownHasStatus } from '@riddance/fetch'
+import { SignatureV4 } from '@smithy/signature-v4'
 import { Hash, Hmac, createHash, createHmac } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { Agent } from 'node:https'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout } from 'node:timers/promises'
@@ -65,7 +64,6 @@ export async function localAwsEnv(region: string | undefined, profile: string): 
 }
 
 export function awsRequest(
-    agent: Agent,
     env: LocalEnv,
     method: string,
     service: string,
@@ -73,7 +71,6 @@ export function awsRequest(
     body?: unknown,
 ) {
     return awsStringRequest(
-        agent,
         env,
         method,
         service,
@@ -84,7 +81,6 @@ export function awsRequest(
 }
 
 export function awsFormRequest(
-    agent: Agent,
     env: LocalEnv,
     method: string,
     service: string,
@@ -92,7 +88,6 @@ export function awsFormRequest(
     body: URLSearchParams,
 ) {
     return awsStringRequest(
-        agent,
         env,
         method,
         service,
@@ -103,7 +98,6 @@ export function awsFormRequest(
 }
 
 async function awsStringRequest(
-    agent: Agent,
     env: LocalEnv,
     method: string,
     service: string,
@@ -140,7 +134,6 @@ async function awsStringRequest(
         body,
     })
     return await fetch(uri.toString(), {
-        agent,
         method,
         headers,
         body: body || undefined,

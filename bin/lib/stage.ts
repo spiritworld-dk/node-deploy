@@ -2,19 +2,30 @@ import commonjs from '@rollup/plugin-commonjs'
 import json from '@rollup/plugin-json'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import virtual from '@rollup/plugin-virtual'
+import { rollup, RollupCache, SourceMap } from '@rollup/wasm-node'
 import { createHash } from 'node:crypto'
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import zlib from 'node:zlib'
-import { rollup, RollupCache, SourceMap } from 'rollup'
-import { minify } from 'terser'
+// eslint-disable-next-line camelcase
+import { minify_sync } from 'terser'
 import { install } from './npm.js'
 
 type Implementation = {
     implementation: string
     version: string
+}
+
+const aws = {
+    entry: (fn: string) => `
+import './${fn}.js'
+import { awsHandler } from '@riddance/aws-host/http'
+
+export const handler = awsHandler
+`,
+    patch: (code: string) => `/*global fetch AbortController*/${code}`,
 }
 
 export async function stage(
@@ -64,7 +75,7 @@ export async function stage(
     const nonFunctionFilesUnchanged = isDeepStrictEqual(previous, hashes)
     if (nonFunctionFilesUnchanged) {
         const code = [
-            ...(await rollupAndMinify(path, stagePath, changed)),
+            ...(await rollupAndMinify(aws, path, stagePath, changed)),
             ...(await Promise.all(
                 unchanged.map(async fn => ({
                     fn,
@@ -75,7 +86,7 @@ export async function stage(
         await writeFile(join(stagePath, '.hashes.json'), hashesJson)
         return code
     } else {
-        const code = await rollupAndMinify(path, stagePath, functions)
+        const code = await rollupAndMinify(aws, path, stagePath, functions)
         await writeFile(join(stagePath, '.hashes.json'), hashesJson)
         return code
     }
@@ -171,11 +182,15 @@ async function find(dir: string): Promise<string[]> {
     }
 }
 
-async function rollupAndMinify(_path: string, stagePath: string, functions: string[]) {
+type Host = {
+    entry: (fn: string) => string
+    patch?: (bundled: string) => string
+}
+
+async function rollupAndMinify(host: Host, _path: string, stagePath: string, functions: string[]) {
     const minified = []
     let rollupCache: RollupCache | undefined
     for (const fn of functions) {
-        console.log(`bundling ${fn}`)
         const bundler = await rollup({
             input: 'entry',
             cache: rollupCache,
@@ -188,12 +203,7 @@ async function rollupAndMinify(_path: string, stagePath: string, functions: stri
             plugins: [
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
                 (virtual as any)({
-                    entry: `
-import './${fn}.js'
-import { awsHandler } from '@riddance/aws-host/http'
-
-export const handler = awsHandler
-`,
+                    entry: aws.entry(fn),
                 }),
                 nodeResolve({
                     exportConditions: ['node'],
@@ -243,22 +253,30 @@ export const handler = awsHandler
         if (!map || map.version !== 3) {
             throw new Error('Source map missing.')
         }
-        minified.push(pack(stagePath, fn, code, { ...map, version: 3 }))
+        minified.push(pack(host, stagePath, fn, code, { ...map, version: 3 }))
     }
     return await Promise.all(minified)
 }
 
-async function pack(stagePath: string, fn: string, code: string, map: SourceMap & { version: 3 }) {
+async function pack(
+    host: Host,
+    stagePath: string,
+    fn: string,
+    source: string,
+    map: SourceMap & { version: 3 },
+) {
     console.log(`minifying ${fn}`)
-    const min = await minify(
-        { [`${fn}.js`]: code },
+    // eslint-disable-next-line camelcase
+    const min = minify_sync(
+        { [`${fn}.js`]: source },
         {
             compress: {
-                toplevel: true,
+                module: true,
+                ecma: 2015,
                 // eslint-disable-next-line camelcase
                 hoist_funs: true,
                 // eslint-disable-next-line camelcase
-                dead_code: true,
+                booleans_as_integers: true,
             },
             mangle: {
                 module: true,
@@ -276,16 +294,17 @@ async function pack(stagePath: string, fn: string, code: string, map: SourceMap 
     if (!min.code) {
         throw new Error('Weird')
     }
+    const code = host.patch ? host.patch(min.code) : min.code
     console.log(`${fn} minified`)
     await Promise.all([
-        writeFile(join(stagePath, fn + '.min.js'), min.code),
+        writeFile(join(stagePath, fn + '.min.js'), code),
         writeFile(
             join(stagePath, fn + '.min.js.map.gz'),
             await gzip(min.map as unknown as ArrayBufferLike),
         ),
     ])
 
-    return { fn, code: min.code }
+    return { fn, code }
 }
 
 function gzip(data: ArrayBufferLike) {

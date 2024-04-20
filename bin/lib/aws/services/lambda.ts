@@ -2,14 +2,12 @@ import { jsonResponse, okResponse } from '@riddance/fetch'
 import { PackageJsonConfiguration, Reflection, resolveCpu } from '@riddance/host/reflect'
 import JSZip from 'jszip'
 import { createHash } from 'node:crypto'
-import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
 import { LocalEnv, awsRequest, retry, retryConflict } from '../lite.js'
 
 export async function syncLambda(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     currentFunctions: AwsFunctionLite[],
     reflection: Reflection,
@@ -31,7 +29,6 @@ export async function syncLambda(
         missing.map(fn =>
             createLambda(
                 env,
-                agent,
                 prefix,
                 fn.name,
                 reflection.name,
@@ -42,12 +39,11 @@ export async function syncLambda(
             ),
         ),
     )
-    await Promise.all(surplus.map(fn => deleteLambda(env, agent, prefix, reflection.name, fn.name)))
+    await Promise.all(surplus.map(fn => deleteLambda(env, prefix, reflection.name, fn.name)))
     await Promise.all(
         existing.map(awsFn =>
             updateLambda(
                 env,
-                agent,
                 prefix,
                 awsFn.name,
                 reflection.name,
@@ -98,7 +94,7 @@ type AwsFunction = {
     LastModified: string
     FunctionArn: string
     FunctionName: string
-    Runtime: 'nodejs18.x'
+    Runtime: 'nodejs18.x' | 'nodejs20.x'
     Version: '$LATEST'
     PackageType: 'Zip'
     MemorySize: number
@@ -125,7 +121,6 @@ type AwsFunction = {
 
 export async function getFunctions(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
 ): Promise<AwsFunctionLite[]> {
@@ -136,7 +131,7 @@ export async function getFunctions(
             Functions: AwsFunction[]
             NextMarker: string | null
         }>(
-            awsRequest(agent, env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
+            awsRequest(env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
             'Error listing functions',
         )
         funcs.push(...page.Functions)
@@ -168,7 +163,6 @@ type Config = {
 
 async function createLambda(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     name: string,
     service: string,
@@ -184,7 +178,7 @@ async function createLambda(
     const response = await jsonResponse<{ FunctionArn: string }>(
         retry(
             () =>
-                awsRequest(agent, env, 'POST', 'lambda', '/2015-03-31/functions', {
+                awsRequest(env, 'POST', 'lambda', '/2015-03-31/functions', {
                     FunctionName: `${prefix}-${service}-${name}`,
                     Code: { ZipFile: code.zipped },
                     PackageType: 'Zip',
@@ -205,7 +199,6 @@ async function createLambda(
 
 async function updateLambda(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     name: string,
     service: string,
@@ -226,7 +219,6 @@ async function updateLambda(
         console.log('updating code for lambda ' + name)
         await okResponse(
             awsRequest(
-                agent,
                 env,
                 'PUT',
                 'lambda',
@@ -260,7 +252,6 @@ async function updateLambda(
         await retryConflict(() =>
             okResponse(
                 awsRequest(
-                    agent,
                     env,
                     'PUT',
                     'lambda',
@@ -273,22 +264,10 @@ async function updateLambda(
     }
 }
 
-async function deleteLambda(
-    env: LocalEnv,
-    agent: Agent,
-    prefix: string,
-    service: string,
-    name: string,
-) {
+async function deleteLambda(env: LocalEnv, prefix: string, service: string, name: string) {
     console.log('deleting lambda ' + name)
     await okResponse(
-        awsRequest(
-            agent,
-            env,
-            'DELETE',
-            'lambda',
-            `/2015-03-31/functions/${prefix}-${service}-${name}`,
-        ),
+        awsRequest(env, 'DELETE', 'lambda', `/2015-03-31/functions/${prefix}-${service}-${name}`),
         'Error deleting lambda ' + name,
     )
 }
@@ -296,7 +275,7 @@ async function deleteLambda(
 function lambdaConfig(config: Config, role: string, environment: { [key: string]: string }) {
     return {
         Role: role,
-        Runtime: 'nodejs18.x',
+        Runtime: getRuntime(config),
         Handler: 'index.handler',
         Timeout: config.timeout ?? 15,
         MemorySize: config.compute === 'high' || config.memory === 'high' ? 3008 : 128,
@@ -306,6 +285,19 @@ function lambdaConfig(config: Config, role: string, environment: { [key: string]
         Environment: {
             Variables: environment,
         },
+    }
+}
+
+function getRuntime(config: Config) {
+    switch (config.nodeVersion?.substring(0, 4)) {
+        case '>=20':
+            return 'nodejs20.x'
+        case '>=18':
+            return 'nodejs18.x'
+        default:
+            throw new Error(
+                'Unsupported engine; please specify either "node": ">=18" or "node": ">=20" as an engine in your package.json.',
+            )
     }
 }
 

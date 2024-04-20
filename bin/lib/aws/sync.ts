@@ -1,22 +1,16 @@
 import type { Reflection } from '@riddance/host/reflect'
-import { Agent } from 'node:https'
 import { localAwsEnv } from './lite.js'
 import { getApi, syncGateway } from './services/apiGateway.js'
 import { getFunctions, syncLambda } from './services/lambda.js'
 import { assignPolicy, getRole, syncRole } from './services/roles.js'
 import { syncTriggers } from './services/triggers.js'
 
-const agent = new Agent({
-    keepAlive: true,
-    maxSockets: 4,
-})
-
 export async function getCurrentState(prefix: string, service: string) {
     const env = await localAwsEnv(undefined, prefix)
     const [role, functions, apis] = await Promise.all([
-        getRole(env, agent, prefix, service),
-        getFunctions(env, agent, prefix, service),
-        getApi(env, agent, prefix, service),
+        getRole(env, prefix, service),
+        getFunctions(env, prefix, service),
+        getApi(env, prefix, service),
     ])
     return { role, functions, apis }
 }
@@ -36,10 +30,9 @@ export async function sync(
     },
 ) {
     const env = await localAwsEnv(undefined, prefix)
-    const role = await syncRole(env, agent, prefix, service, currentState.role)
+    const role = await syncRole(env, prefix, service, currentState.role)
     const fns = await syncLambda(
         env,
-        agent,
         prefix,
         currentState.functions,
         reflection,
@@ -54,7 +47,6 @@ export async function sync(
 
     const gatewayId = await syncGateway(
         env,
-        agent,
         region,
         account,
         prefix,
@@ -64,17 +56,9 @@ export async function sync(
         corsSites,
     )
 
-    await syncTriggers(env, agent, prefix, service, fns, reflection, region, account, gatewayId)
+    await syncTriggers(env, prefix, service, fns, reflection, region, account, gatewayId)
 
-    await assignPolicy(
-        env,
-        agent,
-        prefix,
-        service,
-        region,
-        account,
-        provider.aws?.policyStatements ?? [],
-    )
+    await assignPolicy(env, prefix, service, region, account, provider.aws?.policyStatements ?? [])
 
     return `https://${gatewayId}.execute-api.eu-central-1.amazonaws.com/`
 }

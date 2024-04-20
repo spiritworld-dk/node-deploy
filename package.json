@@ -1,6 +1,6 @@
 {
   "name": "@riddance/aws-env",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "type": "module",
   "keywords": [
     "riddance",
@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "files": [
     "*.js",
@@ -26,19 +26,19 @@
     "deploy": "./bin/deploy.js"
   },
   "dependencies": {
-    "@aws-sdk/signature-v4": "3.374.0",
-    "@riddance/host": "0.0.12",
-    "@rollup/plugin-commonjs": "25.0.4",
-    "@rollup/plugin-json": "6.0.0",
-    "@rollup/plugin-node-resolve": "15.1.0",
-    "@rollup/plugin-virtual": "3.0.1",
+    "@smithy/signature-v4": "2.3.0",
+    "@riddance/host": "0.1.0",
+    "@rollup/plugin-commonjs": "25.0.7",
+    "@rollup/plugin-json": "6.1.0",
+    "@rollup/plugin-node-resolve": "15.2.3",
+    "@rollup/plugin-virtual": "3.0.2",
     "jszip": "3.10.1",
-    "@riddance/fetch": "0.0.9",
-    "rollup": "3.28.0",
-    "terser": "5.19.2"
+    "@riddance/fetch": "0.1.0",
+    "@rollup/wasm-node": "4.14.3",
+    "terser": "5.30.3"
   },
   "devDependencies": {
-    "@riddance/env": "0.4.2"
+    "@riddance/env": "0.5.0"
   },
   "scripts": {
     "prepack": "riddance-build",

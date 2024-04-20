@@ -1,5 +1,4 @@
 import { jsonResponse, okResponse, throwOnNotOK } from '@riddance/fetch'
-import { Agent } from 'node:https'
 import { setTimeout } from 'node:timers/promises'
 import { LocalEnv, awsRequest } from '../lite.js'
 
@@ -19,12 +18,10 @@ export type AwsRole = {
 
 export async function getRole(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
 ): Promise<AwsRole | undefined> {
     const response = await awsRequest(
-        agent,
         env,
         'GET',
         'iam',
@@ -47,16 +44,15 @@ export async function getRole(
 
 export async function syncRole(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
     role: AwsRole | undefined,
 ) {
-    role ??= await createRole(env, agent, prefix, service)
+    role ??= await createRole(env, prefix, service)
     return role.Arn
 }
 
-async function createRole(env: LocalEnv, agent: Agent, prefix: string, service: string) {
+async function createRole(env: LocalEnv, prefix: string, service: string) {
     console.log('creating role')
     const response = await jsonResponse<{
         CreateRoleResponse: {
@@ -66,7 +62,6 @@ async function createRole(env: LocalEnv, agent: Agent, prefix: string, service: 
         }
     }>(
         awsRequest(
-            agent,
             env,
             'GET',
             'iam',
@@ -102,7 +97,6 @@ async function createRole(env: LocalEnv, agent: Agent, prefix: string, service: 
 
 export async function assignPolicy(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
     region: string,
@@ -112,7 +106,6 @@ export async function assignPolicy(
     console.log('assigning policy')
     await okResponse(
         awsRequest(
-            agent,
             env,
             'GET',
             'iam',

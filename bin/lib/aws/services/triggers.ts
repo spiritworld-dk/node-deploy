@@ -1,13 +1,11 @@
 import { jsonResponse, okResponse } from '@riddance/fetch'
 import { Reflection } from '@riddance/host/reflect'
 import { randomUUID } from 'node:crypto'
-import { Agent } from 'node:https'
 import { isDeepStrictEqual } from 'node:util'
 import { LocalEnv, awsRequest, isNotFound } from '../lite.js'
 
 export async function syncTriggers(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
     functions: { id: string; name: string }[],
@@ -16,7 +14,7 @@ export async function syncTriggers(
     account: string | undefined,
     apiGatewayId: string,
 ) {
-    const currentTriggers = await getTriggers(env, agent, prefix, service, functions)
+    const currentTriggers = await getTriggers(env, prefix, service, functions)
     await Promise.all(
         reflection.http.map(async fn => {
             const trigger = currentTriggers.find(t => t.name === fn.name)
@@ -28,7 +26,7 @@ export async function syncTriggers(
                     functions.find(f => f.name === fn.name)?.id ?? '',
                     fn,
                 )
-                await addTrigger(env, agent, prefix, service, fn.name, randomUUID(), statement)
+                await addTrigger(env, prefix, service, fn.name, randomUUID(), statement)
                 return
             }
             const statement = makeStatementData(region, account, apiGatewayId, trigger.id, fn)
@@ -37,17 +35,17 @@ export async function syncTriggers(
                 for (const { Sid, ...data } of trigger.statements) {
                     if (isDeepStrictEqual(data, statement)) {
                         if (exists) {
-                            await deleteTrigger(env, agent, prefix, service, fn.name, Sid)
+                            await deleteTrigger(env, prefix, service, fn.name, Sid)
                         } else {
                             exists = true
                         }
                     } else {
-                        await deleteTrigger(env, agent, prefix, service, fn.name, Sid)
+                        await deleteTrigger(env, prefix, service, fn.name, Sid)
                     }
                 }
             }
             if (!exists) {
-                await addTrigger(env, agent, prefix, service, fn.name, randomUUID(), statement)
+                await addTrigger(env, prefix, service, fn.name, randomUUID(), statement)
             }
         }),
     )
@@ -74,7 +72,6 @@ type AwsStatement = {
 
 export async function getTriggers(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
     functions: { id: string; name: string }[],
@@ -90,7 +87,6 @@ export async function getTriggers(
                             (
                                 await jsonResponse<{ Policy: string }>(
                                     awsRequest(
-                                        agent,
                                         env,
                                         'GET',
                                         'lambda',
@@ -118,7 +114,6 @@ export async function getTriggers(
 
 async function addTrigger(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
     name: string,
@@ -128,7 +123,6 @@ async function addTrigger(
     console.log('Adding trigger ' + id)
     await okResponse(
         awsRequest(
-            agent,
             env,
             'POST',
             'lambda',
@@ -146,7 +140,6 @@ async function addTrigger(
 
 async function deleteTrigger(
     env: LocalEnv,
-    agent: Agent,
     prefix: string,
     service: string,
     name: string,
@@ -155,7 +148,6 @@ async function deleteTrigger(
     console.log('Deleting trigger ' + id)
     await okResponse(
         awsRequest(
-            agent,
             env,
             'DELETE',
             'lambda',
