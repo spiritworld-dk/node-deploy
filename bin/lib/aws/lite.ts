@@ -16,10 +16,11 @@ export type LocalEnv = {
 let cachedConfigLines: string[] | undefined
 
 export async function localAwsEnv(region: string | undefined, profile: string): Promise<LocalEnv> {
-    let { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY } = {
+    let { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN } = {
         AWS_REGION: region ?? process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION,
         AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
         AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+        AWS_SESSION_TOKEN: process.env.AWS_SESSION_TOKEN,
     }
     if (AWS_REGION && AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY) {
         return { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY }
@@ -57,10 +58,11 @@ export async function localAwsEnv(region: string | undefined, profile: string): 
     AWS_REGION ??= sectionLines.find(([k]) => k === 'region')?.[1]
     AWS_ACCESS_KEY_ID = sectionLines.find(([k]) => k === 'aws_access_key_id')?.[1]
     AWS_SECRET_ACCESS_KEY = sectionLines.find(([k]) => k === 'aws_secret_access_key')?.[1]
+    AWS_SESSION_TOKEN = sectionLines.find(([k]) => k === 'aws_session_token')?.[1]
     if (!AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
         throw new Error('Incomplete AWS credentials file.')
     }
-    return { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY }
+    return { AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN }
 }
 
 export function awsRequest(
