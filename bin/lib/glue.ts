@@ -1,3 +1,4 @@
+import { missing } from '@riddance/fetch'
 import { createPublicKey, generateKeyPairSync, randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -86,6 +87,12 @@ const variables: Variable[] = [
                 .split('\n')
                 .slice(1, -2)
                 .join(''),
+    },
+    {
+        pattern: /\$ASK\(([^)]*)\)/gu,
+        source: () => ({ environment: own }),
+        value: (_prefix, service, [_, hint], key, env, _url) =>
+            env[service]?.[key] ?? missing(`ASK implementation: ${hint}`),
     },
     {
         pattern: /\$RANDOM\(([0-9]+)\)/gu,
