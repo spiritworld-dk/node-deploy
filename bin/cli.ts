@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 
-import './deploy.js'
+import './bake.js'
