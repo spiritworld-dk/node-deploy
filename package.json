@@ -1,6 +1,6 @@
 {
-  "name": "@riddance/deploy",
-  "version": "0.0.2",
+  "name": "@spiritworld-dk/deploy",
+  "version": "0.0.6",
   "type": "module",
   "keywords": [
     "riddance",
@@ -10,6 +10,9 @@
     "aws",
     "lambda"
   ],
+  "repository": {
+    "url": "https://github.com/spiritworld-dk/node-deploy.git"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=20"
@@ -43,8 +46,8 @@
   },
   "scripts": {
     "prepare": "tsc",
-    "prepack": "riddance-build",
     "start": "riddance-watch",
+    "prepack": "riddance-build",
     "prepublishOnly": "riddance-prepublish",
     "postpublish": "riddance-sync"
   }
