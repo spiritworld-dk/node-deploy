@@ -277,8 +277,8 @@ function lambdaConfig(config: Config, role: string, environment: { [key: string]
         Role: role,
         Runtime: getRuntime(config),
         Handler: 'index.handler',
-        Timeout: config.timeout ?? 15,
-        MemorySize: config.compute === 'high' || config.memory === 'high' ? 3008 : 128,
+        Timeout: config.timeout ?? 30,
+        MemorySize: config.compute === 'high' || config.memory === 'high' ? 3008 : 512,
         TracingConfig: {
             Mode: 'PassThrough',
         },
