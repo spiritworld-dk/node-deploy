@@ -1,6 +1,6 @@
 {
   "name": "@spiritworld-dk/deploy",
-  "version": "0.0.6",
+  "version": "0.0.8",
   "type": "module",
   "keywords": [
     "riddance",
@@ -26,8 +26,7 @@
   ],
   "bin": {
     "cli": "bin/cli.js",
-    "deploy": "bin/deploy.js",
-    "bake": "bin/cli-env.js"
+    "deploy": "bin/cli.js"
   },
   "dependencies": {
     "@smithy/signature-v4": "2.3.0",
