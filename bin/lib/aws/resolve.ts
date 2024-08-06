@@ -1,5 +1,5 @@
 import { localAwsEnv } from './lite.js'
-import { getApi } from './services/apiGateway.js'
+import { getApiEndpoint } from './services/apiGateway.js'
 import { getFunctions } from './services/lambda.js'
 
 export class Resolver {
@@ -15,7 +15,6 @@ export class Resolver {
     }
 
     async getBaseUrl(prefix: string, service: string): Promise<string | undefined> {
-        const api = await getApi(await this.#env, prefix, service)
-        return (api.api?.apiEndpoint ?? '') + '/'
+        return ((await getApiEndpoint(await this.#env, prefix, service)) ?? '') + '/'
     }
 }

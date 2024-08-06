@@ -145,12 +145,34 @@ export type AwsGatewayApi = {
     }
 }
 
+const cachedApis: AwsGatewayApi[] = []
+
+async function fetchApis(env: LocalEnv) {
+    if (cachedApis.length === 0) {
+        let marker = ''
+        for (;;) {
+            const page = await jsonResponse<{ items: AwsGatewayApi[]; nextToken?: string }>(
+                awsRequest(env, 'GET', 'apigateway', `/v2/apis/?${marker}`),
+                'Error fetching APIs.',
+            )
+            cachedApis.push(...page.items)
+            if (typeof page.nextToken !== 'string') {
+                break
+            }
+            marker = `nextToken=${encodeURIComponent(page.nextToken)}`
+        }
+    }
+    return cachedApis
+}
+
+export async function getApiEndpoint(env: LocalEnv, prefix: string, service: string) {
+    const apis = await fetchApis(env)
+    const [api] = apis.filter(a => a.name === `${prefix}-${service}`)
+    return api?.apiEndpoint
+}
 export async function getApi(env: LocalEnv, prefix: string, service: string) {
-    const apis = await jsonResponse<{ items: AwsGatewayApi[] }>(
-        awsRequest(env, 'GET', 'apigateway', `/v2/apis/`),
-        'Error getting APIs.',
-    )
-    const [api] = apis.items.filter(a => a.name === `${prefix}-${service}`)
+    const apis = await fetchApis(env)
+    const [api] = apis.filter(a => a.name === `${prefix}-${service}`)
     if (!api) {
         return { integrations: [], routes: [] }
     }
