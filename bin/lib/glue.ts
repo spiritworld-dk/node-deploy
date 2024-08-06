@@ -32,9 +32,20 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
                 [provider: string]: unknown
             }
         }
+        apps: {
+            [key: string]: {
+                name: string
+                provider: 'vercel' | 'fly'
+                githubRepo: string
+                env: { [key: string]: string }
+                secrets: { [key: string]: string }
+                cors?: string
+                [provider: string]: unknown
+            }
+        }
     }
 
-    const { cors, env, secrets, ...provider } = glue.services[service] ?? {}
+    const { cors, env, secrets, ...provider } = glue.services[service] ?? glue.apps[service] ?? {}
     return {
         service,
         implementations: {
