@@ -1,6 +1,6 @@
 {
   "name": "@spiritworld-dk/deploy",
-  "version": "0.0.9",
+  "version": "0.0.13",
   "type": "module",
   "keywords": [
     "riddance",

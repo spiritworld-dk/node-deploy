@@ -6,6 +6,7 @@ import { join } from 'node:path'
 export type Resolver = {
     getEnvironment(prefix: string, service: string): Promise<{ [key: string]: string }>
     getBaseUrl(prefix: string, service: string): Promise<string | undefined>
+    prefetch(): Promise<void>
 }
 
 type Implementations = {
@@ -126,6 +127,7 @@ const variables: Variable[] = [
         value: (_prefix, _service, [, service, key], _key, env, _url) =>
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             env[service!]?.[key!] ??
+            '' ??
             variableError(
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 `Variable ${key!} for ${service!} not found. Has it been deployed?`,
@@ -198,6 +200,7 @@ async function resolveEnv(
             }
         }
     }
+    await resolver.prefetch()
     const [environments, baseUrls] = await Promise.all([
         fetchEnvironments(prefix, referencedEnvironments, resolver),
         fetchBaseUrls(prefix, referencedBaseUrls, resolver),
@@ -212,7 +215,7 @@ async function resolveEnv(
                 ) {
                     return substring
                 }
-                const s = v.value(
+                return v.value(
                     prefix,
                     service,
                     [substring, ...matches],
@@ -220,7 +223,6 @@ async function resolveEnv(
                     environments,
                     baseUrls,
                 )
-                return s
             })
         }
     }
@@ -230,7 +232,7 @@ async function resolveEnv(
         env[ref.key] = env[ref.key]!.replaceAll(
             ref.v.pattern,
             (substring, ...matches: string[]) => {
-                const s = ref.v.value(
+                return ref.v.value(
                     prefix,
                     service,
                     [substring, ...matches],
@@ -238,7 +240,6 @@ async function resolveEnv(
                     { [service]: env },
                     baseUrls,
                 )
-                return s
             },
         )
     }

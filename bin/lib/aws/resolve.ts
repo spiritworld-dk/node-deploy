@@ -1,12 +1,16 @@
 import { localAwsEnv } from './lite.js'
-import { getApiEndpoint } from './services/apiGateway.js'
-import { getFunctions } from './services/lambda.js'
+import { fetchApis, getApiEndpoint } from './services/apiGateway.js'
+import { fetchFunctions, getFunctions } from './services/lambda.js'
 
 export class Resolver {
     readonly #env
 
     constructor(prefix: string) {
         this.#env = localAwsEnv(undefined, prefix)
+    }
+
+    async prefetch() {
+        await Promise.all([fetchFunctions(await this.#env), fetchApis(await this.#env)])
     }
 
     async getEnvironment(prefix: string, service: string): Promise<{ [key: string]: string }> {

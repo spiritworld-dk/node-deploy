@@ -1,8 +1,9 @@
-import { jsonResponse, okResponse, throwOnNotOK } from '@riddance/fetch'
+import { jsonResponse, okResponse, thrownHasStatus, throwOnNotOK } from '@riddance/fetch'
 import { Reflection } from '@riddance/host/reflect'
 import { isDeepStrictEqual } from 'node:util'
 import { compare } from '../diff.js'
 import { LocalEnv, awsRequest } from '../lite.js'
+import { setTimeout } from 'node:timers/promises'
 
 export async function syncGateway(
     env: LocalEnv,
@@ -147,19 +148,27 @@ export type AwsGatewayApi = {
 
 const cachedApis: AwsGatewayApi[] = []
 
-async function fetchApis(env: LocalEnv) {
+export async function fetchApis(env: LocalEnv) {
     if (cachedApis.length === 0) {
         let marker = ''
         for (;;) {
-            const page = await jsonResponse<{ items: AwsGatewayApi[]; nextToken?: string }>(
-                awsRequest(env, 'GET', 'apigateway', `/v2/apis/?${marker}`),
-                'Error fetching APIs.',
-            )
-            cachedApis.push(...page.items)
-            if (typeof page.nextToken !== 'string') {
-                break
+            try {
+                const page = await jsonResponse<{ items: AwsGatewayApi[]; nextToken?: string }>(
+                    awsRequest(env, 'GET', 'apigateway', `/v2/apis/?${marker}`),
+                    'Error fetching APIs.',
+                )
+                cachedApis.push(...page.items)
+                if (typeof page.nextToken !== 'string') {
+                    break
+                }
+                marker = `nextToken=${encodeURIComponent(page.nextToken)}`
+            } catch (err) {
+                if (thrownHasStatus(err, 429)) {
+                    await setTimeout(1000)
+                    continue
+                }
+                throw err
             }
-            marker = `nextToken=${encodeURIComponent(page.nextToken)}`
         }
     }
     return cachedApis
