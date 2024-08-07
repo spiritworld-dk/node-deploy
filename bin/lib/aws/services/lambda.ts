@@ -119,29 +119,32 @@ type AwsFunction = {
     Architectures: Architectures
 }
 
+const cachedFunctions: AwsFunction[] = []
+
 export async function getFunctions(
     env: LocalEnv,
     prefix: string,
     service: string,
 ): Promise<AwsFunctionLite[]> {
-    const funcs = []
-    let marker = ''
-    for (;;) {
-        const page = await jsonResponse<{
-            Functions: AwsFunction[]
-            NextMarker: string | null
-        }>(
-            awsRequest(env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
-            'Error listing functions',
-        )
-        funcs.push(...page.Functions)
-        if (page.NextMarker === null) {
-            break
+    if (cachedFunctions.length === 0) {
+        let marker = ''
+        for (;;) {
+            const page = await jsonResponse<{
+                Functions: AwsFunction[]
+                NextMarker: string | null
+            }>(
+                awsRequest(env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
+                'Error listing functions',
+            )
+            cachedFunctions.push(...page.Functions)
+            if (page.NextMarker === null) {
+                break
+            }
+            marker = `Marker=${encodeURIComponent(page.NextMarker)}`
         }
-        marker = `Marker=${encodeURIComponent(page.NextMarker)}`
     }
     const fnPrefix = `${prefix}-${service}-`.toLowerCase()
-    return funcs
+    return cachedFunctions
         .filter(fn => fn.FunctionName.startsWith(fnPrefix))
         .map(fn => ({
             id: fn.FunctionArn,
