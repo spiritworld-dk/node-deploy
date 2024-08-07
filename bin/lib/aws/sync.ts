@@ -28,6 +28,7 @@ export async function sync(
     provider: {
         aws?: { policyStatements: { Effect: string; Resource: string; Action: string[] }[] }
     },
+    lambdaSafeList?: string[],
 ) {
     const env = await localAwsEnv(undefined, prefix)
     const role = await syncRole(env, prefix, service, currentState.role)
@@ -39,6 +40,7 @@ export async function sync(
         environment,
         role,
         code,
+        lambdaSafeList,
     )
     const [_arn, _aws, _lambda, region, account, _function, _name] = fns[0]?.id.split(':') ?? []
     if (!region || !account) {

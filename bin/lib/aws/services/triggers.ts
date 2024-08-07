@@ -76,7 +76,7 @@ export async function getTriggers(
     service: string,
     functions: { id: string; name: string }[],
 ): Promise<AwsTrigger[]> {
-    const policies = await Promise.all(
+    return await Promise.all(
         functions.map(async fn => {
             try {
                 return {
@@ -109,10 +109,9 @@ export async function getTriggers(
             }
         }),
     )
-    return policies
 }
 
-async function addTrigger(
+export async function addTrigger(
     env: LocalEnv,
     prefix: string,
     service: string,
@@ -138,7 +137,7 @@ async function addTrigger(
     )
 }
 
-async function deleteTrigger(
+export async function deleteTrigger(
     env: LocalEnv,
     prefix: string,
     service: string,

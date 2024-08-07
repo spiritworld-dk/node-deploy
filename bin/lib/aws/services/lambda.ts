@@ -1,4 +1,4 @@
-import { jsonResponse, okResponse } from '@riddance/fetch'
+import { jsonResponse, okResponse, thrownHasStatus } from '@riddance/fetch'
 import { PackageJsonConfiguration, Reflection, resolveCpu } from '@riddance/host/reflect'
 import JSZip from 'jszip'
 import { createHash } from 'node:crypto'
@@ -14,6 +14,7 @@ export async function syncLambda(
     environment: { [key: string]: string },
     role: string,
     code: { [name: string]: string },
+    safeList: string[] = [],
 ) {
     const zipped = Object.fromEntries(
         await Promise.all(
@@ -39,7 +40,11 @@ export async function syncLambda(
             ),
         ),
     )
-    await Promise.all(surplus.map(fn => deleteLambda(env, prefix, reflection.name, fn.name)))
+    await Promise.all(
+        surplus
+            .filter(el => !safeList.includes(el.name))
+            .map(fn => deleteLambda(env, prefix, reflection.name, fn.name)),
+    )
     await Promise.all(
         existing.map(awsFn =>
             updateLambda(
@@ -59,7 +64,7 @@ export async function syncLambda(
     return currentFunctions.map(fn => ({ id: fn.id, name: fn.name })).concat(created)
 }
 
-async function zip(code: string) {
+export async function zip(code: string) {
     const buffer = await new JSZip()
         .file('index.js', code, {
             compression: 'DEFLATE',
@@ -119,8 +124,32 @@ type AwsFunction = {
     Architectures: Architectures
 }
 
-const cachedFunctions: AwsFunction[] = []
+export async function getFunction(env: LocalEnv, prefix: string, service: string, name: string) {
+    const fnPrefix = `${prefix}-${service}-`.toLowerCase()
+    try {
+        const { Configuration: fn } = await jsonResponse<{ Configuration: AwsFunction }>(
+            awsRequest(env, 'GET', 'lambda', `/2015-03-31/functions/${prefix}-${service}-${name}`),
+            `Error getting function: ${name}`,
+        )
+        return {
+            id: fn.FunctionArn,
+            name: fn.FunctionName.substring(fnPrefix.length),
+            runtime: fn.Runtime,
+            memory: fn.MemorySize,
+            timeout: fn.Timeout,
+            env: fn.Environment?.Variables ?? {},
+            cpus: fn.Architectures,
+            hash: fn.CodeSha256,
+        }
+    } catch (err) {
+        if (thrownHasStatus(err, 404)) {
+            return undefined
+        }
+        throw err
+    }
+}
 
+const cachedFunctions: AwsFunction[] = []
 export async function getFunctions(
     env: LocalEnv,
     prefix: string,
@@ -164,7 +193,7 @@ type Config = {
     timeout?: number
 } & PackageJsonConfiguration
 
-async function createLambda(
+export async function createLambda(
     env: LocalEnv,
     prefix: string,
     name: string,
@@ -200,7 +229,7 @@ async function createLambda(
     return { name, id: response.FunctionArn }
 }
 
-async function updateLambda(
+export async function updateLambda(
     env: LocalEnv,
     prefix: string,
     name: string,

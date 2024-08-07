@@ -71,15 +71,29 @@ export function awsRequest(
     service: string,
     path: string,
     body?: unknown,
+    headers?: { [k: string]: string },
+    contentType = 'application/json',
+    checksum?: boolean,
 ) {
+    const b = body ? (typeof body === 'string' ? body : JSON.stringify(body)) : ''
     return awsStringRequest(
         env,
         method,
         service,
         path,
         body ? JSON.stringify(body) : '',
-        'application/json',
+        contentType,
+        {
+            ...headers,
+            ...(checksum && {
+                'Content-MD5': createContentHash(b),
+            }),
+        },
     )
+}
+
+export function createContentHash(body: string) {
+    return createHash('md5').update(body).digest('base64')
 }
 
 export function awsFormRequest(
@@ -106,6 +120,7 @@ async function awsStringRequest(
     path: string,
     body: string,
     contentType: string,
+    headers?: { [k: string]: string },
 ) {
     const signer = new SignatureV4({
         service,
@@ -122,7 +137,7 @@ async function awsStringRequest(
     uri.searchParams.forEach((value, key) => {
         query[key] = value
     })
-    const { headers } = await signer.sign({
+    const { headers: signedHeaders } = await signer.sign({
         method,
         protocol: 'https:',
         hostname: uri.hostname,
@@ -132,12 +147,13 @@ async function awsStringRequest(
             host: uri.hostname,
             'content-type': contentType,
             accept: 'application/json',
+            ...headers,
         },
         body,
     })
     return await fetch(uri.toString(), {
         method,
-        headers,
+        headers: signedHeaders,
         body: body || undefined,
     })
 }

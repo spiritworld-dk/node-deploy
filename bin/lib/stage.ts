@@ -187,7 +187,12 @@ type Host = {
     patch?: (bundled: string) => string
 }
 
-async function rollupAndMinify(host: Host, _path: string, stagePath: string, functions: string[]) {
+export async function rollupAndMinify(
+    host: Host,
+    _path: string,
+    stagePath: string,
+    functions: string[],
+) {
     const minified = []
     let rollupCache: RollupCache | undefined
     for (const fn of functions) {
@@ -203,7 +208,7 @@ async function rollupAndMinify(host: Host, _path: string, stagePath: string, fun
             plugins: [
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
                 (virtual as any)({
-                    entry: aws.entry(fn),
+                    entry: host.entry(fn),
                 }),
                 nodeResolve({
                     exportConditions: ['node'],

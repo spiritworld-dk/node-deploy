@@ -47,9 +47,6 @@
   },
   "scripts": {
     "prepare": "tsc",
-    "start": "riddance-watch",
-    "prepack": "riddance-build",
-    "prepublishOnly": "riddance-prepublish",
-    "postpublish": "riddance-sync"
+    "start": "riddance-watch"
   }
 }

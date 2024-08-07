@@ -4,3 +4,7 @@ Millis
 nodebuffer
 onwarn
 treeshake
+datapoints
+mrkdwn
+spiritworld
+datapoint

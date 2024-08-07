@@ -8,27 +8,32 @@ export type Resolver = {
     getBaseUrl(prefix: string, service: string): Promise<string | undefined>
 }
 
+type Implementations = {
+    [interfacePackage: string]: {
+        implementation: string
+        version: string
+    }
+}
+
 export async function getGlue(path: string, prefix: string, resolver: Resolver, gluePath?: string) {
     const [packageJson, glueJson] = await Promise.all([
         readFile(join(path, 'package.json'), 'utf-8'),
-        readFile(gluePath ?? join(path, '..', 'glue', 'glue.json'), 'utf-8'),
+        readFile(gluePath ?? join(path, '..', 'glue', `glue.${prefix}.json`), 'utf-8'),
     ])
     const { name: service } = JSON.parse(packageJson) as { name: string }
     const glue = JSON.parse(glueJson) as {
-        implementations: {
-            [interfacePackage: string]: {
-                implementation: string
-                version: string
-            }
-        }
+        implementations: Implementations
+        telemetry: unknown
         websites: {
             [key: string]: string[]
         }
         services: {
             [key: string]: {
                 cors?: string
+                telemetry?: unknown
                 env: { [key: string]: string }
                 secrets: { [key: string]: string }
+                implementations?: Implementations
                 [provider: string]: unknown
             }
         }
@@ -40,17 +45,21 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
                 env: { [key: string]: string }
                 secrets: { [key: string]: string }
                 cors?: string
+                implementations?: Implementations
                 [provider: string]: unknown
             }
         }
     }
 
-    const { cors, env, secrets, ...provider } = glue.services[service] ?? glue.apps[service] ?? {}
+    const { telemetry, cors, env, secrets, implementations, ...provider } =
+        glue.services[service] ?? glue.apps[service] ?? {}
     return {
         service,
         implementations: {
             ...glue.implementations,
+            ...implementations,
         },
+        telemetry: glue.telemetry ?? telemetry ?? {},
         corsSites: cors ? glue.websites[cors] ?? [] : [],
         env: resolveEnv(env ?? {}, secrets ?? {}, prefix, service, resolver),
         ...provider,
