@@ -49,7 +49,13 @@ try {
             await env,
             Object.fromEntries(code.map(c => [c.fn, c.code])),
             provider as object,
-            await setupTelemetry(envName, service, 'error-handler', 'errors', telemetry),
+            await setupTelemetry(
+                envName,
+                service,
+                'error-handler',
+                'errors',
+                options.has('telemetry') && telemetry,
+            ),
         )
 
         console.log('done.')
@@ -69,7 +75,7 @@ try {
 }
 
 function parseOptions(params: string[]) {
-    return ['compress', 'prepare-only'].reduce((map, key) => {
+    return ['compress', 'prepare-only', 'telemetry'].reduce((map, key) => {
         if (params.includes(`--${key}`)) {
             map.set(key, true)
         }

@@ -18,13 +18,15 @@ export async function setupTelemetry(
     service: string,
     template: string,
     eventType: 'errors',
-    config?: {
-        alarm?: AlarmConfig
-        metricFilter?: MetricFilterConfig
-        endpoint?: string
-    },
+    config?:
+        | {
+              alarm?: AlarmConfig
+              metricFilter?: MetricFilterConfig
+              endpoint?: string
+          }
+        | false,
 ) {
-    if (typeof config === 'undefined') {
+    if (!config) {
         return
     }
 

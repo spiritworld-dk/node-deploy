@@ -164,7 +164,11 @@ export async function fetchFunctions(env: LocalEnv) {
                     awsRequest(env, 'GET', 'lambda', `/2015-03-31/functions/?${marker}`),
                     'Error listing functions',
                 )
-                cachedFunctions.push(...page.Functions)
+                cachedFunctions.push(
+                    ...page.Functions.filter(
+                        f => !cachedFunctions.some(c => c.FunctionArn === f.FunctionArn),
+                    ),
+                )
                 if (page.NextMarker === null) {
                     break
                 }

@@ -35,14 +35,14 @@ function generateSlackMessage(event: AlarmEvent) {
                 type: 'header',
                 text: {
                     type: 'plain_text',
-                    text: `Alarm is ${event.NewStateValue === 'ALARM' ? 'down' : 'up'} for ${env}-${service}-${functionName}`,
+                    text: `${event.NewStateValue === 'ALARM' ? ':x:' : ':white_check_mark:'} Alarm is ${event.NewStateValue === 'ALARM' ? 'down' : 'up'} for ${env}-${service}-${functionName} ${event.NewStateValue === 'ALARM' ? ':x:' : ':white_check_mark:'}`,
                 },
             },
             {
                 type: 'context',
                 elements: [
                     {
-                        text: `*${new Date(event.StateChangeTime).toISOString()}* | ${getCloudwatchUrl(event)}`,
+                        text: getCloudwatchUrl(event),
                         type: 'mrkdwn',
                     },
                 ],
