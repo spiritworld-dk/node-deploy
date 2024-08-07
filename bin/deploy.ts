@@ -66,9 +66,9 @@ try {
     throw e
 }
 
-function parseOptions(args: string[]) {
+function parseOptions(params: string[]) {
     return ['compress', 'prepare-only'].reduce((map, key) => {
-        if (args.includes(`--${key}`)) {
+        if (params.includes(`--${key}`)) {
             map.set(key, true)
         }
         return map
