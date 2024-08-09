@@ -1,5 +1,5 @@
 import { localAwsEnv, LocalEnv } from './lite.js'
-import { type AlarmConfig, type MetricFilterConfig, setupAlarm } from './services/cloudwatch.js'
+import { type AlarmConfig, setupAlarm } from './services/cloudwatch.js'
 import { createLambda, getFunction, getFunctions, updateLambda, zip } from './services/lambda.js'
 import { ensureTopic, makeStatementData } from './services/sns.js'
 import { setTimeout } from 'node:timers/promises'
@@ -13,15 +13,15 @@ import { randomUUID } from 'node:crypto'
 import { rollupAndMinify } from '../stage.js'
 import { readFile } from 'node:fs/promises'
 
-export async function setupTelemetry(
+export async function setupMonitor(
     prefix: string,
     service: string,
     template: string,
-    eventType: 'errors',
     config?:
         | {
               alarm?: AlarmConfig
-              metricFilter?: MetricFilterConfig
+              subject?: 'errors'
+              filterPattern?: 'ERROR'
               endpoint?: string
           }
         | false,
@@ -31,19 +31,19 @@ export async function setupTelemetry(
     }
 
     try {
-        if (!config.endpoint) {
-            console.warn('invalid telemetry config.')
+        if (!(config.endpoint && config.subject)) {
+            console.warn('invalid monitor config.')
             return
         }
-        console.log('setting up telemetry.')
+        console.log('setting up monitor.')
 
         const env = await localAwsEnv(undefined, prefix)
 
         const listener = await setupListener(env, prefix, service, template, {
-            SLACK_WEBHOOK_URL: config.endpoint ?? missing('telemetry endpoint'),
+            SLACK_WEBHOOK_URL: config.endpoint ?? missing('monitor endpoint'),
         })
         await setTimeout(1000)
-        const topicArn = await ensureTopic(env, `${prefix}-${service}-${eventType}`, {
+        const topicArn = await ensureTopic(env, `${prefix}-${service}-${config.subject}`, {
             protocol: 'lambda',
             endpoint: listener.id,
         })
@@ -60,15 +60,15 @@ export async function setupTelemetry(
             await setupAlarm(
                 env,
                 `/aws/lambda/${prefix}-${service}-${f.name}`,
-                `${prefix}-${service}-${f.name}-${eventType}`,
-                `${prefix}-${service}-${eventType}`,
+                `${prefix}-${service}-${f.name}-${config.subject}`,
+                `${prefix}-${service}-${config.subject}`,
                 config,
                 topicArn,
             )
         }
         return [listener.name]
     } catch (err) {
-        console.warn('Error setting up telemetry', err)
+        console.warn('Error setting up monitor', err)
         return undefined
     }
 }

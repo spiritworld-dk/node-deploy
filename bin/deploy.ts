@@ -6,7 +6,7 @@ import { stage } from './lib/stage.js'
 import { gzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { setupTelemetry } from './lib/aws/telemetry.js'
+import { setupMonitor } from './lib/aws/monitor.js'
 
 const [, , pathOrEnvArg, envArg, glueFile, ...args] = process.argv
 if (!pathOrEnvArg) {
@@ -19,7 +19,7 @@ const options = parseOptions(args)
 
 try {
     const resolver = new Resolver(envName)
-    const { telemetry, service, implementations, corsSites, env, ...provider } = await getGlue(
+    const { monitor, service, implementations, corsSites, env, ...provider } = await getGlue(
         path,
         envName,
         resolver,
@@ -49,12 +49,11 @@ try {
             await env,
             Object.fromEntries(code.map(c => [c.fn, c.code])),
             provider as object,
-            await setupTelemetry(
+            await setupMonitor(
                 envName,
                 service,
-                'error-handler',
-                'errors',
-                options.has('telemetry') && telemetry,
+                'alarm-handler',
+                options.has('monitor') && monitor,
             ),
         )
 
@@ -75,7 +74,7 @@ try {
 }
 
 function parseOptions(params: string[]) {
-    return ['compress', 'prepare-only', 'telemetry'].reduce((map, key) => {
+    return ['compress', 'prepare-only', 'monitor'].reduce((map, key) => {
         if (params.includes(`--${key}`)) {
             map.set(key, true)
         }

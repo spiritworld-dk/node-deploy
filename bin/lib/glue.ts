@@ -24,14 +24,14 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
     const { name: service } = JSON.parse(packageJson) as { name: string }
     const glue = JSON.parse(glueJson) as {
         implementations: Implementations
-        telemetry: unknown
+        monitor: unknown
         websites: {
             [key: string]: string[]
         }
         services: {
             [key: string]: {
                 cors?: string
-                telemetry?: unknown
+                monitor?: unknown
                 env: { [key: string]: string }
                 secrets: { [key: string]: string }
                 implementations?: Implementations
@@ -52,7 +52,7 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
         }
     }
 
-    const { telemetry, cors, env, secrets, implementations, ...provider } =
+    const { monitor, cors, env, secrets, implementations, ...provider } =
         glue.services[service] ?? glue.apps[service] ?? {}
     return {
         service,
@@ -60,7 +60,7 @@ export async function getGlue(path: string, prefix: string, resolver: Resolver, 
             ...glue.implementations,
             ...implementations,
         },
-        telemetry: glue.telemetry ?? telemetry ?? {},
+        monitor: glue.monitor ?? monitor ?? {},
         corsSites: cors ? glue.websites[cors] ?? [] : [],
         env: resolveEnv(env ?? {}, secrets ?? {}, prefix, service, resolver),
         ...provider,

@@ -271,6 +271,7 @@ async function pack(
     map: SourceMap & { version: 3 },
 ) {
     console.log(`minifying ${fn}`)
+    await writeFile(join(stagePath, fn + '.raw.js'), source)
     // eslint-disable-next-line camelcase
     const min = minify_sync(
         { [`${fn}.js`]: source },

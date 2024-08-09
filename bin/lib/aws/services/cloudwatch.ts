@@ -22,10 +22,6 @@ type Alarm = {
     OKActions: string[]
 }
 export type AlarmConfig = Alarm
-export type MetricFilterConfig = {
-    filterName: string
-    filterPattern: string
-}
 export async function setupAlarm(
     env: LocalEnv,
     logGroupName: string,
@@ -33,7 +29,8 @@ export async function setupAlarm(
     metricNameSpace: string,
     config: {
         alarm?: AlarmConfig
-        metricFilter?: MetricFilterConfig
+        filterPattern?: string
+        subject?: string
     },
     endpoint: string,
 ) {
@@ -65,24 +62,21 @@ export async function setupAlarm(
             env,
             logGroupName,
             makeFilter(
-                config?.metricFilter?.filterName ?? 'Errors',
-                config?.metricFilter?.filterPattern ?? 'ERROR',
+                config?.subject ?? 'Errors',
+                config?.filterPattern ?? 'ERROR',
                 metricName,
                 metricNameSpace,
             ),
         ))
 
     if (metricFilter) {
-        if (
-            config?.metricFilter &&
-            metricFilter.filterPattern !== config.metricFilter.filterPattern
-        ) {
+        if (config?.filterPattern && metricFilter.filterPattern !== config.filterPattern) {
             await putMetricFilter(
                 env,
                 logGroupName,
                 makeFilter(
-                    config.metricFilter.filterName,
-                    config.metricFilter.filterPattern,
+                    config.subject ?? 'errors',
+                    config.filterPattern,
                     metricName,
                     metricNameSpace,
                 ),
