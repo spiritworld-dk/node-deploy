@@ -1,6 +1,6 @@
 {
   "name": "@riddance/deploy",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "keywords": [
     "riddance",
@@ -25,16 +25,16 @@
     "deploy": "bin/index.js"
   },
   "dependencies": {
-    "@riddance/host": "0.3.0",
-    "@riddance/fetch": "0.1.4",
-    "@rollup/plugin-commonjs": "29.0.2",
+    "@riddance/host": "0.3.1",
+    "@riddance/fetch": "0.1.5",
+    "@rollup/plugin-commonjs": "29.0.3",
     "@rollup/plugin-json": "6.1.0",
     "@rollup/plugin-node-resolve": "16.0.3",
     "@rollup/plugin-virtual": "3.0.2",
-    "@rollup/wasm-node": "4.60.4",
-    "@smithy/signature-v4": "5.4.3",
+    "@rollup/wasm-node": "4.62.4",
+    "@smithy/signature-v4": "5.6.12",
     "jszip": "3.10.1",
-    "terser": "5.47.1"
+    "terser": "5.49.2"
   },
   "scripts": {
     "prepack": "riddance-build",
@@ -43,6 +43,9 @@
     "postpublish": "riddance-sync"
   },
   "devDependencies": {
-    "@riddance/env": "0.10.0"
+    "@riddance/env": "0.10.2"
+  },
+  "allowScripts": {
+    "@riddance/env": true
   }
 }

@@ -325,7 +325,7 @@ function getRuntime({ config }: Target) {
 }
 
 function memorySize({ config, method }: Target) {
-    if (!config.compute && !config.memory && method) {
+    if (method && !config.compute && !config.memory) {
         return 256
     }
     if (config.compute === 'high' || config.memory === 'high') {
@@ -338,7 +338,7 @@ function lambdaArchitecture({ config, method }: Target) {
     switch (
         resolveCpu(
             config,
-            config.compute === 'high' || (config.compute === undefined && method === 'GET')
+            config.compute === 'high' || (method === 'GET' && config.compute === undefined)
                 ? ['x64', 'x32', 'arm64', 'arm']
                 : ['arm64', 'arm', 'x64', 'x32'],
         )

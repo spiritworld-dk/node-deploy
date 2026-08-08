@@ -161,9 +161,9 @@ export async function assignPolicy(
                         })),
                         ...additionalStatements.map(as => ({
                             Effect: as.Effect,
-                            Resource: as.Resource.replaceAll('$REGION', region).replaceAll(
+                            Resource: as.Resource.replaceAll('$REGION', () => region).replaceAll(
                                 '$ACCOUNT',
-                                account,
+                                () => account,
                             ),
                             Action: as.Action,
                         })),

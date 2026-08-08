@@ -37,7 +37,7 @@ export async function localAwsEnv(
             .split('\n')
             .map(line => line.trim())
             .filter(line => !!line && !line.startsWith('#'))
-    // eslint-disable-next-line require-atomic-updates
+    // eslint-disable-next-line require-atomic-updates, unicorn/no-top-level-assignment-in-function
     cachedConfigLines = configLines
 
     let sectionBeginIx = -1
@@ -148,7 +148,7 @@ async function awsStringRequest(
         body,
     })
     for (let retries = 0; ; ++retries) {
-        const response = await fetch(uri.toString(), {
+        const response = await fetch(uri, {
             method,
             headers,
             body: body || undefined,
@@ -188,7 +188,7 @@ export async function* pages<T, S>(
     itemMap: (items: T[]) => S[],
     errorMessage: string,
 ) {
-    for (let next = ''; ; ) {
+    for (let next = ''; ;) {
         const page = await jsonResponse<{ items: T[]; nextToken?: string }>(
             awsRequest(context, 'GET', service, path + next),
             errorMessage,

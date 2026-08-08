@@ -71,26 +71,25 @@ export async function syncGateway(
             ),
         )
         return currentGateway.api.apiId
-    } else {
-        const gateway = await createGateway(context, prefix, service, corsSites)
-        const ids = await Promise.all(
-            reflection.http.map(fn =>
-                createIntegration(
-                    context,
-                    gateway.apiId,
-                    fn.name,
-                    asIntegration(region, account, prefix, service, fn),
-                ),
-            ),
-        )
-        const integrationIdByName = Object.fromEntries(ids)
-        await Promise.all(
-            reflection.http.map(fn =>
-                createRoute(context, gateway.apiId, asRoute(integrationIdByName[fn.name], fn)),
-            ),
-        )
-        return gateway.apiId
     }
+    const gateway = await createGateway(context, prefix, service, corsSites)
+    const ids = await Promise.all(
+        reflection.http.map(fn =>
+            createIntegration(
+                context,
+                gateway.apiId,
+                fn.name,
+                asIntegration(region, account, prefix, service, fn),
+            ),
+        ),
+    )
+    const integrationIdByName = Object.fromEntries(ids)
+    await Promise.all(
+        reflection.http.map(fn =>
+            createRoute(context, gateway.apiId, asRoute(integrationIdByName[fn.name], fn)),
+        ),
+    )
+    return gateway.apiId
 }
 
 async function syncIntegrations(
@@ -198,7 +197,7 @@ function asIntegration(
     account: string | undefined,
     prefix: string,
     service: string,
-    fn: { name: string; method: string; pathPattern: string; config: { timeout?: number } },
+    fn: { name: string; method: string; config: { timeout?: number } },
 ): AwsIntegration {
     if (!region || !account) {
         throw new Error('Weird')

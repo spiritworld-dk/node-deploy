@@ -57,7 +57,7 @@ export async function stage(
     service: string,
     types: { [name: string]: 'http' | 'timer' | 'event' },
 ) {
-    stagePath = stagePath ?? join(tmpdir(), 'riddance', 'stage', service)
+    stagePath ??= join(tmpdir(), 'riddance', 'stage', service)
     log.trace(`stage dir: ${stagePath}`)
     log.trace('staging...')
     const { functions, hashes, config } = await copyAndPatchProject(
@@ -93,7 +93,7 @@ export async function stage(
     const unchanged = []
     for (const fn of functions) {
         const file = fn + '.js'
-        if (previous[file] !== hashes[file] || packageChange) {
+        if (packageChange || previous[file] !== hashes[file]) {
             changed.push(fn)
         } else {
             unchanged.push(fn)
@@ -124,21 +124,20 @@ export async function stage(
         ]
         await writeFile(join(stagePath, '.hashes.json'), hashesJson)
         return code
-    } else {
-        const code = await rollupAndMinify(
-            log,
-            aws,
-            path,
-            stagePath,
-            service,
-            revision,
-            config,
-            functions,
-            types,
-        )
-        await writeFile(join(stagePath, '.hashes.json'), hashesJson)
-        return code
     }
+    const code = await rollupAndMinify(
+        log,
+        aws,
+        path,
+        stagePath,
+        service,
+        revision,
+        config,
+        functions,
+        types,
+    )
+    await writeFile(join(stagePath, '.hashes.json'), hashesJson)
+    return code
 }
 
 async function copyAndPatchProject(
@@ -165,11 +164,13 @@ async function copyAndPatchProject(
 
     const substitutions = []
     for (const [pkg, sub] of Object.entries(implementations)) {
-        if (packageJson.dependencies[pkg]) {
-            delete packageJson.dependencies[pkg]
-            packageJson.dependencies[sub.implementation] = sub.version
-            substitutions.push(`  ${pkg} -> ${sub.implementation} ${sub.version}`)
+        if (!Object.hasOwn(packageJson.dependencies, pkg)) {
+            continue
         }
+
+        delete packageJson.dependencies[pkg]
+        packageJson.dependencies[sub.implementation] = sub.version
+        substitutions.push(`  ${pkg} -> ${sub.implementation} ${sub.version}`)
     }
     delete packageJson.devDependencies
     if (substitutions.length !== 0) {
@@ -195,10 +196,10 @@ async function mkDirCopyFile(
     for (const [fromPackage, toPackage] of Object.entries(implementations)) {
         code = code.replaceAll(
             new RegExp(
-                `import \\{ ([^}]+) \\} from '${fromPackage.replaceAll('/', '\\/')}(|/[^']+)';`,
+                `import \\{ ([^}]+) \\} from '${RegExp.escape(fromPackage)}(|/[^']+)';`,
                 'gu',
             ),
-            `import { $1 } from '${toPackage.implementation}$2';`,
+            (_, i: string, p: string) => `import { ${i} } from '${toPackage.implementation}${p}';`,
         )
     }
     try {
@@ -302,7 +303,7 @@ async function rollupAndMinify(
                 }
                 if (
                     warning.code === 'MISSING_EXPORT' &&
-                    warning.id === '\u0000virtual:entry' &&
+                    warning.id === '\u{0}virtual:entry' &&
                     warning.binding === 'setMeta'
                 ) {
                     return

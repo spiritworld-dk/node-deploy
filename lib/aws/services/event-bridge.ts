@@ -98,7 +98,7 @@ async function createTarget(
 }
 
 function scheduleExpression(schedule: string) {
-    const [min, h, dom, m, dow] = schedule.split(' ')
+    const [min, h, dom, m, dow] = schedule.split(' ', 5)
     if (!min || !h || !dom || !m || !dow) {
         throw new Error('Invalid cron expression: ' + schedule)
     }

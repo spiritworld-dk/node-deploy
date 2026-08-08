@@ -17,10 +17,10 @@ export async function syncTriggers(
     const currentTriggers = await getTriggers(context, prefix, service, functions)
     await Promise.all([
         ...reflection.http.map(async fn => {
-            const trigger = currentTriggers.find(t => t.name === fn.name)
             if (!apiGatewayId) {
                 throw new Error('Need API Gateway for http triggers.')
             }
+            const trigger = currentTriggers.find(t => t.name === fn.name)
             if (!trigger) {
                 const statement = makeApiGatewayStatementData(
                     region,
@@ -232,8 +232,6 @@ function makeApiGatewayStatementData(
     apiGatewayId: string,
     functionId: string,
     fn: {
-        name: string
-        method: string
         pathPattern: string
     },
 ) {
